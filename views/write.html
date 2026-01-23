@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>게시글 작성 - 아무 말 대잔치</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/write.css">
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header-simple">
+        <div class="header-container">
+            <button class="btn-back" onclick="history.back()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+            <h1 class="header-title">아무 말 대잔치</h1>
+            <div class="header-spacer"></div>
+        </div>
+    </header>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="write-main">
+        <div class="write-container">
+            <div class="write-header">
+                <h2 class="page-title">게시글 추가</h2>
+            </div>
+
+            <form id="writeForm" class="write-form">
+                <!-- 제목 -->
+                <div class="form-group">
+                    <label for="title">제목*</label>
+                    <input 
+                        type="text" 
+                        id="title" 
+                        name="title"
+                        class="form-input"
+                        placeholder="제목을 입력해주세요 (최대 26글자)"
+                        maxlength="26"
+                        required
+                    >
+                    <span class="form-error" id="titleError"></span>
+                </div>
+
+                <!-- 내용 -->
+                <div class="form-group">
+                    <label for="content">내용*</label>
+                    <textarea 
+                        id="content" 
+                        name="content"
+                        class="form-textarea"
+                        placeholder="내용을 입력해주세요"
+                        rows="10"
+                        required
+                    ></textarea>
+                    <span class="form-error" id="contentError"></span>
+                </div>
+
+                <!-- 이미지 업로드 -->
+                <div class="form-group">
+                    <label for="image">이미지</label>
+                    <div class="image-upload">
+                        <input 
+                            type="file" 
+                            id="image" 
+                            accept="image/*"
+                            style="display: none;"
+                        >
+                        <label for="image" class="image-upload-label">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            <span id="imageLabel">파일을 선택해주세요</span>
+                        </label>
+                    </div>
+                    <div id="imagePreview" class="image-preview" style="display: none;">
+                        <img id="previewImg" src="" alt="미리보기">
+                        <button type="button" class="btn-remove-image" onclick="removeImage()">×</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit">작성</button>
+            </form>
+        </div>
+    </main>
+
+    <!-- 확인 모달 -->
+    <dialog id="confirmModal" class="modal-confirm">
+        <div class="modal-content">
+            <p>게시글이 등록되었습니다</p>
+            <div class="modal-buttons">
+                <button class="btn-modal" onclick="goToPosts()">확인</button>
+            </div>
+        </div>
+    </dialog>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/js/posts/write.js"></script>
+</body>
+</html>
