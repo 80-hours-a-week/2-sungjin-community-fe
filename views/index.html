@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>아무 말 대잔치</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .home-main {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: var(--spacing-lg);
+        }
+
+        .home-container {
+            text-align: center;
+            color: white;
+        }
+
+        .home-logo {
+            font-size: 72px;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .home-title {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .home-subtitle {
+            font-size: 20px;
+            margin-bottom: var(--spacing-2xl);
+            opacity: 0.9;
+        }
+
+        .home-buttons {
+            display: flex;
+            gap: var(--spacing-lg);
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-home {
+            padding: 16px 40px;
+            border: none;
+            border-radius: var(--radius-full);
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-home-primary {
+            background: white;
+            color: var(--primary);
+        }
+
+        .btn-home-primary:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-home-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn-home-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .home-logo {
+                font-size: 48px;
+            }
+
+            .home-title {
+                font-size: 32px;
+            }
+
+            .home-subtitle {
+                font-size: 16px;
+            }
+
+            .home-buttons {
+                flex-direction: column;
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .btn-home {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="home-main">
+        <div class="home-container">
+            <div class="home-logo">🎭</div>
+            <h1 class="home-title">아무 말 대잔치</h1>
+            <p class="home-subtitle">당신의 이야기를 들려주세요</p>
+            
+            <div class="home-buttons">
+                <button class="btn-home btn-home-primary" onclick="navigateTo('/login')">
+                    로그인
+                </button>
+                <button class="btn-home btn-home-secondary" onclick="navigateTo('/signup')">
+                    회원가입
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/utils.js"></script>
+</body>
+</html>

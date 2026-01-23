@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - 페이지를 찾을 수 없습니다</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <style>
+        .error-main {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-lg);
+        }
+
+        .error-container {
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .error-code {
+            font-size: 120px;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .error-emoji {
+            font-size: 64px;
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .error-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .error-message {
+            font-size: 16px;
+            color: var(--gray-600);
+            margin-bottom: var(--spacing-2xl);
+            line-height: 1.6;
+        }
+
+        .error-buttons {
+            display: flex;
+            gap: var(--spacing-md);
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-error {
+            padding: 12px 32px;
+            border: none;
+            border-radius: var(--radius-full);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-error-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-error-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-error-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn-error-secondary:hover {
+            background: var(--gray-300);
+        }
+
+        @media (max-width: 768px) {
+            .error-code {
+                font-size: 80px;
+            }
+
+            .error-emoji {
+                font-size: 48px;
+            }
+
+            .error-title {
+                font-size: 24px;
+            }
+
+            .error-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn-error {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="error-main">
+        <div class="error-container">
+            <div class="error-code">404</div>
+            <div class="error-emoji">😅</div>
+            <h1 class="error-title">페이지를 찾을 수 없습니다</h1>
+            <p class="error-message">
+                요청하신 페이지가 존재하지 않거나<br>
+                삭제되었을 수 있습니다.
+            </p>
+            
+            <div class="error-buttons">
+                <button class="btn-error btn-error-primary" onclick="navigateTo('/')">
+                    홈으로 가기
+                </button>
+                <button class="btn-error btn-error-secondary" onclick="history.back()">
+                    이전 페이지
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/utils.js"></script>
+</body>
+</html>
