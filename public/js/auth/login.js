@@ -1,7 +1,3 @@
-/**
- * 로그인 페이지 로직 - 완전 구현
- * 명세 100% 반영
- */
 
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('loginForm');
@@ -40,23 +36,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!password) {
             showError(passwordInput, 'passwordError', '비밀번호를 입력해주세요');
             isValid = false;
-        } else if (!validatePasswordComplex(password)) {
-            showError(passwordInput, 'passwordError', '비밀번호는 8자 이상, 20자 이하이며, 대문자, 소문자, 숫자, 특수문자를 각각 최소 1개 포함해야 합니다.');
-            isValid = false;
         }
         
         if (!isValid) return;
         
         try {
             // 로그인 API 호출
+            console.log('🔐 로그인 시도:', email);
             const response = await login(email, password);
+            console.log('✅ 로그인 응답:', response);
             
             if (response.message === 'login_success' || response.success) {
                 // 성공 - 게시글 목록으로 이동
+                console.log('✅ 로그인 성공! 쿠키:', document.cookie);
                 window.location.href = '/posts';
             }
         } catch (error) {
-            console.error('Login error:', error);
+            console.error('❌ 로그인 에러:', error);
             // 로그인 실패
             showError(passwordInput, 'passwordError', '아이디 또는 비밀번호를 확인해주세요');
         }
@@ -69,9 +65,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const email = emailInput.value.trim();
         const password = passwordInput.value;
         
-        // 이메일과 비밀번호가 모두 입력되고 유효한지 확인
+        // 이메일과 비밀번호가 모두 입력되고 이메일 형식이 유효한지 확인
         const isEmailValid = email && validateEmail(email);
-        const isPasswordValid = password && validatePasswordComplex(password);
+        const isPasswordValid = password.length > 0;
         
         if (isEmailValid && isPasswordValid) {
             // 모두 유효 - 버튼 색상 변경 (ACA0EB → 7F6AEE)
