@@ -58,6 +58,9 @@ document.addEventListener('DOMContentLoaded', function() {
     btnCheckEmail.addEventListener('click', async function() {
         const email = emailInput.value.trim();
         
+        // 기존 에러 메시지 초기화
+        hideFieldError('email');
+        
         if (!email) {
             showFieldError('email', '이메일을 입력해주세요');
             return;
@@ -69,6 +72,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
+            console.log('이메일 중복 확인:', email);
+            
             // 백엔드 API 호출
             const response = await fetch(`http://localhost:8000/users/check-email`, {
                 method: 'POST',
@@ -78,9 +83,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({ email })
             });
             
-            const data = await response.json();
+            console.log('중복확인 응답:', response.status);
             
-            if (response.ok && data.available) {
+            const result = await response.json();
+            console.log('중복확인 데이터:', result);
+            
+            if (response.ok && result.data && result.data.available) {
                 // 사용 가능
                 isEmailChecked = true;
                 btnCheckEmail.textContent = '✓ 확인완료';
@@ -90,17 +98,14 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 // 이미 사용중
                 isEmailChecked = false;
+                btnCheckEmail.textContent = '중복확인';
+                btnCheckEmail.style.background = '';
+                btnCheckEmail.style.color = '';
                 showFieldError('email', '이미 사용 중인 이메일입니다');
             }
         } catch (error) {
-            console.log('백엔드 미연결 - 더미 처리:', error);
-            
-            // 백엔드 없을 때: 모든 이메일 사용 가능으로 처리
-            isEmailChecked = true;
-            btnCheckEmail.textContent = '✓ 확인완료';
-            btnCheckEmail.style.background = '#10B981';
-            btnCheckEmail.style.color = 'white';
-            hideFieldError('email');
+            console.error('중복확인 에러:', error);
+            showFieldError('email', '중복확인에 실패했습니다. 다시 시도해주세요.');
         }
     });
     
