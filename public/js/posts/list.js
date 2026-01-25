@@ -1,6 +1,4 @@
-/**
- * 게시글 목록 페이지 로직
- */
+
 
 let currentPage = 1;
 const limit = 10;
@@ -8,7 +6,7 @@ const limit = 10;
 document.addEventListener('DOMContentLoaded', function() {
     loadPosts();
     
-    // 드롭다운 메뉴
+
     const btnMenu = document.getElementById('btnMenu');
     const dropdownMenu = document.getElementById('dropdownMenu');
     
@@ -27,17 +25,31 @@ async function loadPosts(page = 1) {
     container.innerHTML = '<div class="loading">게시글을 불러오는 중...</div>';
     
     try {
-        // 백엔드 API 호출
+        console.log('📋 게시글 목록 요청:', page);
+        
+
         const response = await getPosts(page, limit);
         
-        if (response.data && response.data.posts.length > 0) {
-            renderPosts(response.data.posts);
-            renderPagination(response.data.total_pages, page);
+        console.log('✅ 게시글 목록 응답:', response);
+        
+
+        const posts = response.data?.items || response.data?.posts || [];
+        const totalPages = response.data?.total_pages || Math.ceil((response.data?.total || 0) / limit);
+        
+        if (posts && posts.length > 0) {
+            console.log('✅ 게시글 수:', posts.length);
+            renderPosts(posts);
+            if (totalPages > 0) {
+                renderPagination(totalPages, page);
+            }
         } else {
+            console.log('⚠️ 게시글 없음');
             container.innerHTML = '<div class="loading">게시글이 없습니다</div>';
         }
     } catch (error) {
-        // 더미 데이터 사용
+        console.error('❌ 게시글 목록 에러:', error);
+
+        console.log('🔄 더미 데이터 사용');
         const dummyPosts = await fetchDummyPosts(10);
         renderPosts(dummyPosts);
     }
@@ -52,11 +64,27 @@ function renderPosts(posts) {
         postItem.className = 'post-item';
         postItem.onclick = () => navigateTo(`/posts/${post.id}`);
         
+       
+        let profileImageUrl = '/images/default-profile.png';
+        if (post.author_profile_image) {
+
+            if (post.author_profile_image.startsWith('/')) {
+               
+                profileImageUrl = `http://localhost:8000${post.author_profile_image}`;
+            } else {
+                profileImageUrl = post.author_profile_image;
+            }
+        }
+        
         postItem.innerHTML = `
             <div class="post-item-header">
-                <div class="post-avatar"></div>
+                <div class="post-avatar" style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background: #ddd; display: flex; align-items: center; justify-content: center;">
+                    <img src="${profileImageUrl}" alt="프로필" 
+                         style="width: 100%; height: 100%; object-fit: cover;"
+                         onerror="this.src='/images/default-profile.png'">
+                </div>
                 <div>
-                    <div class="post-author">${post.author_nickname || 'User ' + post.userId}</div>
+                    <div class="post-author">${post.author_nickname || 'User ' + (post.userId || post.user_id || post.id)}</div>
                     <div class="post-time">${formatDate(post.created_at || new Date())}</div>
                 </div>
             </div>
@@ -77,14 +105,14 @@ function renderPagination(totalPages, currentPage) {
     const container = document.getElementById('pagination');
     container.innerHTML = '';
     
-    // 이전 버튼
+
     const prevBtn = document.createElement('button');
     prevBtn.textContent = '이전';
     prevBtn.disabled = currentPage === 1;
     prevBtn.onclick = () => loadPosts(currentPage - 1);
     container.appendChild(prevBtn);
     
-    // 페이지 번호
+
     for (let i = 1; i <= totalPages; i++) {
         const pageBtn = document.createElement('button');
         pageBtn.textContent = i;
@@ -93,7 +121,7 @@ function renderPagination(totalPages, currentPage) {
         container.appendChild(pageBtn);
     }
     
-    // 다음 버튼
+
     const nextBtn = document.createElement('button');
     nextBtn.textContent = '다음';
     nextBtn.disabled = currentPage === totalPages;
