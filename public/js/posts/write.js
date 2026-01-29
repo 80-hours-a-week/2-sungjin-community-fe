@@ -1,187 +1,176 @@
 /**
- * 게시글 작성 페이지 로직 - 완전 구현
+ * 게시글 작성 페이지 로직
  */
 
-let uploadedImageFile = null;
-let uploadedImageUrl = null;
+// IIFE로 전역 스코프 오염 방지
+(function () {
+    let uploadedImageFile = null;
 
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('writeForm');
-    const titleInput = document.getElementById('title');
-    const contentInput = document.getElementById('content');
-    const imageInput = document.getElementById('image');
-    const submitButton = form.querySelector('button[type="submit"]');
-    
-    // 실시간 검증 및 버튼 색상 변경
-    titleInput.addEventListener('input', function() {
-        validateAndUpdateButton();
-        updateCharacterCount();
-    });
-    contentInput.addEventListener('input', validateAndUpdateButton);
-    
-    // 이미지 선택
-    imageInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        // 파일 크기 체크 (5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            alert('이미지 크기는 5MB 이하여야 합니다.');
-            imageInput.value = '';
-            return;
-        }
-        
-        // 파일 타입 체크
-        if (!file.type.startsWith('image/')) {
-            alert('이미지 파일만 업로드 가능합니다.');
-            imageInput.value = '';
-            return;
-        }
-        
-        uploadedImageFile = file;
-        
-        // 미리보기 표시
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const preview = document.getElementById('imagePreview');
-            const previewImg = document.getElementById('previewImg');
-            
-            previewImg.src = e.target.result;
-            preview.style.display = 'block';
-            
-            // 파일명 표시
-            document.getElementById('imageLabel').textContent = file.name;
-        };
-        reader.readAsDataURL(file);
-    });
-    
-    // 폼 제출
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        // 에러 초기화
-        hideFieldError('title');
-        hideFieldError('content');
-        
-        const title = titleInput.value.trim();
-        const content = contentInput.value.trim();
-        
-        // 검증
-        let isValid = true;
-        
-        if (!title) {
-            showFieldError('title', '제목을 입력해주세요');
-            isValid = false;
-        } else if (title.length > 26) {
-            showFieldError('title', '제목은 최대 26자까지 작성 가능합니다');
-            isValid = false;
-        }
-        
-        if (!content) {
-            showFieldError('content', '내용을 입력해주세요');
-            isValid = false;
-        }
-        
-        if (!isValid) return;
-        
-        try {
-            // 1. 이미지 업로드 (있는 경우)
-            if (uploadedImageFile) {
-                try {
-                    const uploadResult = await uploadImage(uploadedImageFile, 'post');
-                    uploadedImageUrl = uploadResult.data.image_url;
-                } catch (uploadError) {
-                    console.log('이미지 업로드 실패 (선택사항이므로 계속 진행)');
-                }
-            }
-            
-            // 2. 게시글 작성 API 호출
-            const response = await createPost(title, content, uploadedImageUrl);
-            
-            // 성공 모달 표시
-            const modal = document.getElementById('confirmModal');
-            modal.showModal();
-            
-        } catch (error) {
-            console.error('Create post error:', error);
-            alert('게시글 작성에 실패했습니다. 다시 시도해주세요.');
-        }
-    });
-    
-    /**
-     * 실시간 검증 및 버튼 색상 변경
-     */
-    function validateAndUpdateButton() {
-        const title = titleInput.value.trim();
-        const content = contentInput.value.trim();
-        
-        // 제목과 내용이 모두 입력되었는지 확인
-        if (title && content) {
-            // 모두 입력됨 - 버튼 색상 변경 (ACA0EB → 7F6AEE)
-            submitButton.style.background = '#7F6AEE';
-        } else {
-            // 입력 안됨 - 원래 색상
+    document.addEventListener('DOMContentLoaded', function () {
+        console.log('✅ 게시글 작성 페이지 로드');
+
+        // DOM 요소
+        const form = document.getElementById('writeForm');
+        const btnBack = document.getElementById('btnBack');
+        const imageInput = document.getElementById('image');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+        const imageLabel = document.getElementById('imageLabel');
+        const btnRemoveImage = document.getElementById('btnRemoveImage');
+        const confirmModal = document.getElementById('confirmModal');
+        const btnConfirmModal = document.getElementById('btnConfirmModal');
+        const titleInput = document.getElementById('title');
+        const contentInput = document.getElementById('content');
+        const submitButton = form.querySelector('button[type="submit"]');
+        const helperText = document.getElementById('formHelper');
+
+        // 초기 버튼 상태
+        if (submitButton) {
             submitButton.style.background = '#ACA0EB';
         }
-    }
-    
-    /**
-     * 제목 글자수 표시 (26자 제한)
-     */
-    function updateCharacterCount() {
-        const title = titleInput.value;
-        const count = title.length;
-        
-        // Helper text 업데이트 (있는 경우)
-        const helper = titleInput.parentElement.querySelector('.form-helper');
-        if (helper) {
-            if (count > 26) {
-                helper.textContent = `제목은 최대 26자까지 작성 가능합니다 (${count}/26)`;
-                helper.style.color = 'var(--danger)';
+
+        // 제목 입력 제한 (26자)
+        if (titleInput) {
+            titleInput.maxLength = 26;
+            titleInput.addEventListener('input', function () {
+                if (this.value.length > 26) {
+                    this.value = this.value.substring(0, 26);
+                }
+                validateAndUpdateButton();
+            });
+        }
+
+        // 내용 입력 핸들러
+        if (contentInput) {
+            contentInput.addEventListener('input', validateAndUpdateButton);
+        }
+
+        // 버튼 활성화 검사
+        function validateAndUpdateButton() {
+            const title = titleInput ? titleInput.value.trim() : '';
+            const content = contentInput ? contentInput.value.trim() : '';
+
+            if (title && content) {
+                submitButton.style.background = '#7F6AEE';
+                if (helperText) helperText.style.display = 'none';
             } else {
-                helper.textContent = `${count}/26자`;
-                helper.style.color = 'var(--gray-500)';
+                submitButton.style.background = '#ACA0EB';
             }
         }
+
+        // ✅ 뒤로가기 버튼
+        if (btnBack) {
+            btnBack.addEventListener('click', function () {
+                history.back();
+            });
+        }
+
+        // 이미지 선택
+        if (imageInput) {
+            imageInput.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                // 파일 크기 체크 (5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('이미지 크기는 5MB 이하여야 합니다.');
+                    imageInput.value = '';
+                    return;
+                }
+
+                // 파일 타입 체크
+                if (!file.type.startsWith('image/')) {
+                    alert('이미지 파일만 업로드 가능합니다.');
+                    imageInput.value = '';
+                    return;
+                }
+
+                uploadedImageFile = file;
+
+                // 미리보기
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    if (previewImg) previewImg.src = e.target.result;
+                    if (imagePreview) imagePreview.style.display = 'block';
+                    if (imageLabel) imageLabel.textContent = file.name;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // ✅ 이미지 제거 버튼
+        if (btnRemoveImage) {
+            btnRemoveImage.addEventListener('click', function () {
+                removeImage();
+            });
+        }
+
+        // ✅ 모달 확인 버튼
+        if (btnConfirmModal) {
+            btnConfirmModal.addEventListener('click', function () {
+                goToPosts();
+            });
+        }
+
+        // 폼 제출
+        if (form) {
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                const title = document.getElementById('title').value.trim();
+                const content = document.getElementById('content').value.trim();
+
+                // 검증
+                if (!title) {
+                    alert('제목을 입력해주세요.');
+                    return;
+                }
+
+                if (!content) {
+                    alert('내용을 입력해주세요.');
+                    return;
+                }
+
+                try {
+                    let imageUrl = null;
+
+                    // 이미지 업로드 (있는 경우)
+                    if (uploadedImageFile) {
+                        const uploadResult = await uploadImage(uploadedImageFile, 'post');
+                        imageUrl = uploadResult.data?.image_url || uploadResult.image_url;
+                    }
+
+                    // 게시글 작성 API 호출
+                    await createPost(title, content, imageUrl);
+
+                    // 성공 모달 표시
+                    if (confirmModal) {
+                        confirmModal.style.display = 'flex';
+                    }
+
+                } catch (error) {
+                    console.error('게시글 작성 실패:', error);
+                    alert('게시글 작성에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
+                }
+            });
+        }
+    });
+
+    // ✅ 이미지 제거 함수
+    function removeImage() {
+        uploadedImageFile = null;
+
+        const imageInput = document.getElementById('image');
+        const imagePreview = document.getElementById('imagePreview');
+        const imageLabel = document.getElementById('imageLabel');
+
+        if (imageInput) imageInput.value = '';
+        if (imagePreview) imagePreview.style.display = 'none';
+        if (imageLabel) imageLabel.textContent = '파일을 선택해주세요';
     }
-});
 
-function removeImage() {
-    uploadedImageFile = null;
-    uploadedImageUrl = null;
-    
-    const imageInput = document.getElementById('image');
-    const preview = document.getElementById('imagePreview');
-    
-    imageInput.value = '';
-    preview.style.display = 'none';
-    document.getElementById('imageLabel').textContent = '파일을 선택해주세요';
-}
-
-function goToPosts() {
-    const modal = document.getElementById('confirmModal');
-    modal.close();
-    window.location.href = '/posts';
-}
-
-function showFieldError(fieldId, message) {
-    const field = document.getElementById(fieldId);
-    const errorElement = document.getElementById(fieldId + 'Error');
-    
-    if (field) field.classList.add('error');
-    if (errorElement) {
-        errorElement.textContent = message;
-        errorElement.classList.add('show');
+    // ✅ 게시글 목록으로 이동
+    function goToPosts() {
+        window.location.href = `/posts?t=${Date.now()}`;
     }
-}
-
-function hideFieldError(fieldId) {
-    const field = document.getElementById(fieldId);
-    const errorElement = document.getElementById(fieldId + 'Error');
-    
-    if (field) field.classList.remove('error');
-    if (errorElement) {
-        errorElement.textContent = '';
-        errorElement.classList.remove('show');
-    }
-}
+})();
