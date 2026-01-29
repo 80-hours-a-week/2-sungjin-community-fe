@@ -1,58 +1,31 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const routes = require('./routes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const API_URL = process.env.API_URL || 'http://localhost:8000';
+const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // 정적 파일 제공
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 라우팅 - 메인 페이지를 로그인으로 리다이렉트
-app.get('/', (req, res) => {
-    res.redirect('/login');
+// ✅ 환경변수를 JavaScript로 제공 (캐싱 방지 중요!)
+app.get('/config.js', (req, res) => {
+    res.set('Content-Type', 'application/javascript');
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.send(`
+        window.ENV_CONFIG = {
+            API_URL: '${API_URL}',
+            NODE_ENV: '${NODE_ENV}',
+            IS_DEV: ${NODE_ENV === 'development'}
+        };
+    `);
 });
 
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'login.html'));
-});
-
-app.get('/signup', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'signup.html'));
-});
-
-app.get('/profile/edit', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'profile-edit.html'));
-});
-
-app.get('/password/change', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'password-change.html'));
-});
-
-app.get('/posts', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'posts.html'));
-});
-
-app.get('/posts/write', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'write.html'));
-});
-
-app.get('/posts/:id', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'post-detail.html'));
-});
-
-app.get('/posts/:id/edit', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'edit.html'));
-});
-
-app.get('/terms', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'terms.html'));
-});
-
-app.get('/privacy', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'privacy.html'));
-});
+// 라우팅
+app.use('/', routes);
 
 // 404 페이지
 app.use((req, res) => {
@@ -66,7 +39,6 @@ app.listen(PORT, () => {
     console.log('==================================================');
     console.log(`✅ 서버 실행 중: http://localhost:${PORT}`);
     console.log(`📡 백엔드 API: ${API_URL}`);
-    console.log(`📁 정적 파일: ${path.join(__dirname, 'public')}`);
-    console.log(`📄 HTML 파일: ${path.join(__dirname, 'views')}`);
+    console.log(`🌍 환경: ${NODE_ENV}`);
     console.log('==================================================');
 });
