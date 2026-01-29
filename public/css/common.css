@@ -6,11 +6,13 @@
 }
 
 :root {
-    /* Primary Colors - 이미지에 맞춰 수정 */
+    /* Primary Colors - 설계도 기반 */
     --primary: #ACA0EB;
-    --primary-dark: #9A8DD9;
+    --primary-dark: #7F6AEE;
     --primary-light: #E8E4F8;
-    
+    --primary-active: #7F6AEE;
+    --primary-disabled: #ACA0EB;
+
     /* Grayscale */
     --gray-50: #F9FAFB;
     --gray-100: #F3F4F6;
@@ -22,15 +24,22 @@
     --gray-700: #374151;
     --gray-800: #1F2937;
     --gray-900: #111827;
-    
+
     /* Status Colors */
     --danger: #FF0000;
     --success: #10B981;
     --warning: #F59E0B;
-    
+
+    /* Dropdown Colors */
+    --dropdown-hover: #E9E9E9;
+
+    /* Like Button Colors */
+    --like-inactive: #D9D9D9;
+    --like-active: #ACA0EB;
+
     /* Typography */
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Malgun Gothic", sans-serif;
-    
+
     /* Spacing */
     --spacing-xs: 4px;
     --spacing-sm: 8px;
@@ -38,13 +47,13 @@
     --spacing-lg: 24px;
     --spacing-xl: 32px;
     --spacing-2xl: 48px;
-    
+
     /* Border Radius */
     --radius-sm: 4px;
     --radius-md: 8px;
     --radius-lg: 12px;
     --radius-full: 9999px;
-    
+
     /* Shadows */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -105,13 +114,41 @@ body {
     background: var(--gray-100);
 }
 
+/* 헤더 프로필 이미지 */
+.btn-profile {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-radius: 50%;
+    overflow: hidden;
+}
+
+.btn-profile .profile-image,
+.header-profile-img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
 .header-spacer {
     width: 40px;
 }
 
-/* Dropdown Menu */
-.btn-menu {
-    position: relative;
+/* Header Logo Override */
+.header-logo {
+    text-decoration: none;
+    color: var(--gray-900);
+    flex: 1;
+    text-align: center;
+}
+
+.header-logo h1 {
+    font-size: 18px;
+    font-weight: 700;
 }
 
 .dropdown-menu {
@@ -126,6 +163,10 @@ body {
     box-shadow: var(--shadow-lg);
     min-width: 150px;
     z-index: 1001;
+}
+
+.dropdown-wrapper {
+    position: relative;
 }
 
 .dropdown-menu.show {
@@ -145,7 +186,7 @@ body {
 }
 
 .dropdown-menu button:hover {
-    background: var(--gray-50);
+    background: #E9E9E9;
 }
 
 .dropdown-menu button:not(:last-child) {
@@ -273,12 +314,73 @@ body {
 }
 
 /* ==================== Modal ==================== */
+/* 모든 모달에 공통 적용 */
+.modal,
 .modal-confirm {
     border: none;
     border-radius: var(--radius-lg);
     padding: 0;
     max-width: 400px;
     width: 90%;
+    /* 화면 중앙에 위치 */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    box-shadow: var(--shadow-lg);
+}
+
+.modal::backdrop,
+.modal-confirm::backdrop {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.modal .modal-content,
+.modal-confirm .modal-content {
+    padding: var(--spacing-xl);
+    text-align: center;
+}
+
+.modal h3,
+.modal-confirm h3 {
+    text-align: center;
+    margin-bottom: var(--spacing-sm);
+    font-size: 18px;
+    color: var(--gray-900);
+}
+
+.modal p,
+.modal-confirm p {
+    font-size: 14px;
+    color: var(--gray-600);
+    margin-bottom: var(--spacing-lg);
+    line-height: 1.6;
+}
+
+.modal-actions,
+.modal-buttons {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+}
+
+.btn-cancel {
+    padding: 10px 24px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-full);
+    background: white;
+    color: var(--gray-700);
+    cursor: pointer;
+}
+
+.btn-danger {
+    padding: 10px 24px;
+    border: none;
+    border-radius: var(--radius-full);
+    background: #dc3545;
+    color: white;
+    cursor: pointer;
 }
 
 .modal-confirm::backdrop {
@@ -288,6 +390,13 @@ body {
 .modal-confirm .modal-content {
     padding: var(--spacing-xl);
     text-align: center;
+}
+
+.modal-confirm h3 {
+    text-align: center;
+    margin-bottom: var(--spacing-sm);
+    font-size: 18px;
+    color: var(--gray-900);
 }
 
 .modal-confirm p {
@@ -364,8 +473,92 @@ body {
     .header-container {
         padding: var(--spacing-sm);
     }
-    
+
     .header-title {
         font-size: 16px;
     }
+}
+
+/* ==================== Modal Overlay (Custom) ==================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    /* 중앙 정렬 핵심 */
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.modal-content {
+    background: white;
+    padding: var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    text-align: center;
+    box-shadow: var(--shadow-lg);
+    max-width: 400px;
+    width: 90%;
+    animation: modalSlideUp 0.3s ease-out;
+}
+
+@keyframes modalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ==================== Toast Message ==================== */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--gray-800);
+    color: white;
+    padding: 14px 28px;
+    border-radius: var(--radius-full);
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 3000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.toast.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ==================== Button States ==================== */
+.btn-submit.active {
+    background: var(--primary-active);
+}
+
+.btn-submit.disabled {
+    background: var(--primary-disabled);
+    cursor: not-allowed;
+}
+
+/* ==================== Like Button ==================== */
+.btn-like.inactive {
+    background: var(--like-inactive);
+    color: var(--gray-600);
+    border-color: var(--like-inactive);
+}
+
+.btn-like.liked {
+    background: var(--like-active);
+    color: white;
+    border-color: var(--like-active);
 }
