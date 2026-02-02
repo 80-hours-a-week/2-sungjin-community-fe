@@ -266,19 +266,28 @@
                 console.log('✅ 회원가입 성공');
 
                 // 2단계: 로그인 후 프로필 이미지 업로드
+                console.log('🔄 자동 로그인 시도...');
                 await login(email, password);
+                console.log('✅ 자동 로그인 성공');
+
                 await new Promise(resolve => setTimeout(resolve, 500));
 
+                console.log('📤 프로필 이미지 업로드 시도...');
                 const uploadResult = await uploadImage(profileImageFile, 'profile');
+                console.log('✅ 프로필 이미지 업로드 성공:', uploadResult);
                 const imageUrl = uploadResult.data?.image_url || uploadResult.image_url;
 
                 if (imageUrl) {
+                    console.log('🔄 프로필 정보 업데이트 시도...');
                     await updateProfile(nickname, imageUrl);
+                    console.log('✅ 프로필 정보 업데이트 성공');
                 }
 
                 await logout();
+                console.log('👋 로그아웃 완료');
 
                 // 모달 표시
+                console.log('✨ 완료 모달 표시');
                 confirmModal.classList.add('show');
 
             } catch (error) {

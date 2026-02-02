@@ -1,6 +1,6 @@
 /**
- * Share Modal (현재 사용 안 함)
+ * Share Modal (현재 사용 안 함) - 에러 방지용 안전 코드
  */
-
-// 빈 파일 - 에러 방지용
-console.log('share-modal.js loaded');
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('✅ share-modal.js loaded');
+});
