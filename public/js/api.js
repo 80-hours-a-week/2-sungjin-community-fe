@@ -64,7 +64,7 @@ async function apiRequest(endpoint, options = {}) {
             const error = await response.json().catch(() => ({
                 message: `HTTP ${response.status}`
             }));
-            throw new Error(error.message || 'API 요청 실패');
+            throw new Error(error.message || error.detail || 'API 요청 실패');
         }
 
         return await response.json();

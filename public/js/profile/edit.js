@@ -5,8 +5,11 @@
 
 (function () {
     // ✅ 전역 변수를 IIFE 내부로 캡슐화
-    let profileImageFile = null;
-    let profileImageUrl = null;
+    // ✅ 상태 관리 객체 도입 (#11)
+    const state = {
+        imageFile: null,
+        imageUrl: null
+    };
 
     document.addEventListener('DOMContentLoaded', function () {
         console.log('✅ 회원정보 수정 페이지 로드');
@@ -78,8 +81,8 @@
                     return;
                 }
 
-                // ✅ IIFE 내부 변수에 저장
-                profileImageFile = file;
+                // ✅ 상태 객체에 저장
+                state.imageFile = file;
 
                 // 미리보기
                 const reader = new FileReader();
@@ -171,20 +174,20 @@
 
                 try {
                     // 1. 프로필 이미지 업로드 (있는 경우)
-                    if (profileImageFile) {
+                    if (state.imageFile) {
                         try {
                             console.log('📤 이미지 업로드 중...');
-                            const uploadResult = await uploadImage(profileImageFile, 'profile');
-                            profileImageUrl = uploadResult.data?.image_url || uploadResult.image_url;
-                            console.log('✅ 이미지 업로드 완료:', profileImageUrl);
+                            const uploadResult = await uploadImage(state.imageFile, 'profile');
+                            state.imageUrl = uploadResult.data?.image_url || uploadResult.image_url;
+                            console.log('✅ 이미지 업로드 완료:', state.imageUrl);
                         } catch (uploadError) {
                             console.log('⚠️ 이미지 업로드 실패 (선택사항이므로 계속 진행):', uploadError);
                         }
                     }
 
                     // 2. 프로필 수정 API 호출
-                    console.log('📤 프로필 수정 요청:', { nickname, profileImageUrl });
-                    const result = await updateProfile(nickname, profileImageUrl);
+                    console.log('📤 프로필 수정 요청:', { nickname, profileImageUrl: state.imageUrl });
+                    const result = await updateProfile(nickname, state.imageUrl);
 
                     console.log('✅ 프로필 수정 성공:', result);
 
@@ -280,7 +283,7 @@
 
             // 프로필 이미지 - 기존 URL 저장 (수정 시 유지를 위해)
             if (user.profile_image_url && user.profile_image_url.trim() !== '') {
-                profileImageUrl = user.profile_image_url;  // 기존 URL 저장!
+                state.imageUrl = user.profile_image_url;  // 기존 URL 저장!
             }
 
             const previewImage = document.getElementById('previewImage');
