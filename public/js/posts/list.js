@@ -197,25 +197,49 @@ function renderPosts(posts, append = false) {
             postImageUrl = `http://localhost:8000${postImageUrl}`;
         }
 
-        postItem.innerHTML = `
-            <div class="post-card" onclick="location.href='/posts/${post.id}'">
-                <div class="post-header">
-                    <img src="${profileImageUrl || '/images/default-profile.png'}" alt="프로필" class="post-avatar" onerror="this.src='/images/default-profile.png'">
-                    <div class="post-info">
-                        <div class="post-author">${post.author_nickname || '익명'}</div>
-                        <div class="post-date">${formatDateTime(post.created_at)}</div>
-                    </div>
+        // 이미지 HTML 생성 (있을 경우에만)
+        let imageHtml = '';
+        if (postImageUrl) {
+            imageHtml = `
+                <div class="post-image-preview">
+                    <img src="${postImageUrl}" alt="게시글 이미지" loading="lazy">
                 </div>
-                <div class="post-title">${truncateTitle(post.title, 26)}</div>
-                <div class="post-stats">
-                    <div class="stat-item">
-                        좋아요 ${likesDisplay}
+            `;
+        }
+
+        // 날짜 포맷팅 (방금 전, 5분 전 등)
+        // formatDateTime 대신 utils.js의 formatDate 사용 권장 (상대 시간)
+        // 하지만 기존 list.js에 formatDateTime이 있으므로 그것을 수정하거나 그대로 사용
+        // formatDate가 utils.js에 있으므로 그것을 사용해보자.
+        const dateDisplay = typeof formatDate === 'function' ? formatDate(post.created_at) : formatDateTime(post.created_at);
+
+        postItem.innerHTML = `
+            <div class="post-item-header">
+                <img src="${profileImageUrl}" alt="프로필" class="post-avatar" onerror="this.src='/images/default-profile.png'">
+                <div>
+                    <span class="post-author">${post.author_nickname || '익명'}</span>
+                    <span class="post-time">${dateDisplay}</span>
+                </div>
+            </div>
+            
+            <div class="post-item-title">${truncateTitle(post.title, 50)}</div>
+            
+            <div class="post-item-content">
+                ${truncateText(post.content || '', 150)}
+            </div>
+
+            ${imageHtml}
+
+            <div class="post-item-footer">
+                <div class="post-stats-list">
+                    <div class="post-stat">
+                        <span>❤️</span> ${likesDisplay}
                     </div>
-                    <div class="stat-item">
-                        댓글 ${commentsDisplay}
+                    <div class="post-stat">
+                        <span>💬</span> ${commentsDisplay}
                     </div>
-                    <div class="stat-item">
-                        조회수 ${viewsDisplay}
+                    <div class="post-stat">
+                        <span>👁️</span> ${viewsDisplay}
                     </div>
                 </div>
             </div>
