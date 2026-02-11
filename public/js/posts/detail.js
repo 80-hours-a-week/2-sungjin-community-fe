@@ -238,10 +238,20 @@ function renderComments(comments) {
 
         const isMyComment = comment.is_author || false;
 
+        // 프로필 이미지
+        let profileImageUrl = '/images/default-profile.png';
+        if (comment.author_profile_image) {
+            if (comment.author_profile_image.startsWith('/')) {
+                profileImageUrl = `http://localhost:8000${comment.author_profile_image}`;
+            } else {
+                profileImageUrl = comment.author_profile_image;
+            }
+        }
+
         commentItem.innerHTML = `
             <div class="comment-header">
                 <div class="comment-author">
-                    <div class="comment-avatar"></div>
+                    <img src="${profileImageUrl}" alt="프로필" class="comment-avatar" onerror="this.src='/images/default-profile.png'">
                     <div>
                         <div class="comment-name">${comment.author_nickname || comment.name || `User ${comment.userId || comment.id}`}</div>
                         <div class="comment-time">${formatDate(comment.created_at || new Date())}</div>

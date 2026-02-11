@@ -1,0 +1,86 @@
+:root {
+    /* ----------------------------------------------------
+       Color Palette (Dark & Trendy / Violet Accent)
+    ---------------------------------------------------- */
+    --color-bg-body: #0f1115;
+    /* Deep smooth dark */
+    --color-bg-card: rgba(30, 32, 40, 0.7);
+    /* Glassmorphism base */
+    --color-bg-card-hover: rgba(40, 42, 55, 0.8);
+
+    --color-primary: #8b5cf6;
+    /* Violet 500 */
+    --color-primary-hover: #7c3aed;
+    /* Violet 600 */
+    --color-secondary: #06b6d4;
+    /* Cyan 500 - for accents */
+
+    --color-text-main: #f3f4f6;
+    /* Gray 100 */
+    --color-text-sub: #9ca3af;
+    /* Gray 400 */
+    --color-text-muted: #6b7280;
+    /* Gray 500 */
+
+    --color-border: rgba(255, 255, 255, 0.1);
+    --color-border-hover: rgba(139, 92, 246, 0.5);
+    /* Violet glow */
+
+    --color-danger: #ef4444;
+    --color-success: #10b981;
+
+    /* ----------------------------------------------------
+       Typography
+    ---------------------------------------------------- */
+    --font-family-base: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    --font-size-sm: 0.875rem;
+    /* 14px */
+    --font-size-base: 1rem;
+    /* 16px */
+    --font-size-lg: 1.125rem;
+    /* 18px */
+    --font-size-xl: 1.5rem;
+    /* 24px */
+    --font-size-2xl: 2rem;
+    /* 32px */
+
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-bold: 700;
+
+    /* ----------------------------------------------------
+       Effects & Spacing
+    ---------------------------------------------------- */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.15);
+    --shadow-glow: 0 0 15px rgba(139, 92, 246, 0.3);
+
+    --radius-sm: 0.375rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-full: 9999px;
+
+    --transition-fast: 0.15s ease;
+    --transition-base: 0.3s ease;
+
+    --glass-blur: blur(12px);
+    --header-height: 70px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-bg-body);
+}
+
+::-webkit-scrollbar-thumb {
+    background: #374151;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4b5563;
+}

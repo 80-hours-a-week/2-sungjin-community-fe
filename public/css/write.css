@@ -1,21 +1,22 @@
 /* ==================== Write/Edit Pages ==================== */
 .write-main {
-    min-height: calc(100vh - 60px);
-    padding: var(--spacing-lg);
-    background: var(--gray-50);
+    min-height: calc(100vh - var(--header-height));
+    padding: 40px 20px;
 }
 
 .write-container {
     max-width: 800px;
     margin: 0 auto;
-    background: white;
-    border-radius: var(--radius-lg);
-    padding: var(--spacing-2xl);
-    box-shadow: var(--shadow-sm);
+    background: var(--color-bg-card);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--color-border);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: var(--shadow-xl);
 }
 
 .write-header {
-    margin-bottom: var(--spacing-2xl);
+    margin-bottom: 32px;
     text-align: center;
 }
 
@@ -26,76 +27,79 @@
 
 /* ==================== Image Upload ==================== */
 .image-upload {
-    margin-bottom: var(--spacing-md);
+    margin-bottom: 24px;
 }
 
 .image-upload-label {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-md);
-    border: 1px solid var(--gray-300);
-    border-radius: var(--radius-md);
-    background: white;
+    gap: 12px;
+    padding: 32px;
+    border: 2px dashed var(--color-border);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.02);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s;
 }
 
 .image-upload-label:hover {
-    border-color: var(--primary);
-    background: var(--primary-light);
+    border-color: var(--color-primary);
+    background: rgba(139, 92, 246, 0.05);
+    box-shadow: 0 0 15px rgba(139, 92, 246, 0.1);
 }
 
 .image-upload-label svg {
-    color: var(--gray-500);
+    color: var(--color-text-sub);
+    width: 32px;
+    height: 32px;
 }
 
 .image-upload-label span {
-    font-size: 13px;
-    color: var(--gray-600);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-text-sub);
 }
 
 .image-preview {
     position: relative;
-    margin-top: var(--spacing-md);
-    border-radius: var(--radius-md);
+    margin-top: 16px;
+    border-radius: 16px;
     overflow: hidden;
-    border: 1px solid var(--gray-200);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-md);
 }
 
 .image-preview img {
     width: 100%;
     height: auto;
     display: block;
+    max-height: 400px;
+    object-fit: contain;
+    background: black;
 }
 
 .btn-remove-image {
     position: absolute;
-    top: var(--spacing-sm);
-    right: var(--spacing-sm);
-    width: 32px;
-    height: 32px;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
     background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
     color: white;
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
     border-radius: 50%;
-    font-size: 24px;
+    font-size: 20px;
     line-height: 1;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s;
+    transition: all 0.2s;
 }
 
 .btn-remove-image:hover {
-    background: rgba(0, 0, 0, 0.8);
-}
-
-/* ==================== Responsive ==================== */
-@media (max-width: 768px) {
-    .write-container {
-        padding: var(--spacing-lg);
-    }
+    background: var(--color-danger);
+    transform: rotate(90deg);
 }
