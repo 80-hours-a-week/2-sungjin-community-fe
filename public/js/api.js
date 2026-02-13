@@ -1,291 +1,722 @@
 /**
- * API 통신 모듈 (프로덕션용)
- * 
- * 환경변수 주입:
- * - server.js의 /config.js endpoint에서 window.ENV_CONFIG 제공
- * - HTML에서 <script src="/config.js"></script> 먼저 로드 필수
+ * API client and auth session manager (JWT access/refresh).
+ * - Unified request wrapper
+ * - Bearer token injection
+ * - Automatic refresh + single-flight lock for concurrent 401s
+ * - Message-code based error normalization
  */
+(function initApiClient(globalScope) {
+    'use strict';
 
-// ============================================================
-// 환경 설정 로드
-// ============================================================
-const getConfig = () => {
-    // /config.js가 로드되었는지 확인
-    if (!window.ENV_CONFIG) {
-        console.error('❌ 환경변수가 로드되지 않았습니다.');
-        console.error('HTML에서 <script src="/config.js"></script>를 api.js보다 먼저 로드하세요.');
-
-        // Fallback (개발 환경 기본값)
-        return {
-            API_URL: 'http://localhost:8000',
-            IS_DEV: true
-        };
-    }
-
-    return {
-        API_URL: window.ENV_CONFIG.API_URL,
-        IS_DEV: window.ENV_CONFIG.IS_DEV,
-        NODE_ENV: window.ENV_CONFIG.NODE_ENV
+    const defaultConfig = {
+        API_URL: 'http://localhost:8000',
+        IS_DEV: true,
+        NODE_ENV: 'development'
     };
-};
 
-const { API_URL, IS_DEV, NODE_ENV } = getConfig();
+    const envConfig = globalScope.ENV_CONFIG || defaultConfig;
+    const API_URL = (envConfig.API_URL || defaultConfig.API_URL).replace(/\/+$/, '');
+    const IS_DEV = Boolean(envConfig.IS_DEV);
 
-// 개발 환경 디버그
-if (IS_DEV) {
-    console.log('🔧 API 설정:', { API_URL, NODE_ENV });
-}
+    const STORAGE_KEYS = Object.freeze({
+        accessToken: 'auth.access_token',
+        refreshToken: 'auth.refresh_token',
+        expiresAt: 'auth.expires_at'
+    });
 
-// ============================================================
-// 공통 요청 헬퍼
-// ============================================================
-async function apiRequest(endpoint, options = {}) {
-    const url = `${API_URL}${endpoint}`;
+    const SESSION_KEYS = Object.freeze({
+        authNotice: 'auth.notice'
+    });
 
-    try {
-        const defaultOptions = {
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'include', // 쿠키 포함
-        };
+    const AUTH_FREE_PATHS = ['/login', '/signup'];
 
-        const response = await fetch(url, { ...defaultOptions, ...options });
+    const MESSAGE_MAP = Object.freeze({
+        login_success: '로그인되었습니다.',
+        logout_success: '로그아웃되었습니다.',
+        token_expired: '로그인이 만료되었습니다. 다시 로그인해 주세요.',
+        token_invalid: '유효하지 않은 인증 정보입니다. 다시 로그인해 주세요.',
+        invalid_token: '유효하지 않은 인증 정보입니다. 다시 로그인해 주세요.',
+        unauthorized: '로그인이 필요합니다.',
+        forbidden: '이 작업을 수행할 권한이 없습니다.',
+        permission_denied: '이 작업을 수행할 권한이 없습니다.',
+        validation_error: '입력값을 확인해 주세요.',
+        invalid_credentials: '이메일 또는 비밀번호가 올바르지 않습니다.',
+        email_already_exists: '이미 사용 중인 이메일입니다.',
+        nickname_already_exists: '이미 사용 중인 닉네임입니다.',
+        post_not_found: '게시글을 찾을 수 없습니다.',
+        comment_not_found: '댓글을 찾을 수 없습니다.',
+        user_not_found: '사용자 정보를 찾을 수 없습니다.',
+        image_upload_failed: '이미지 업로드에 실패했습니다.'
+    });
 
-        // 인증 실패 → 로그인 페이지 리다이렉트
-        if (response.status === 401) {
-            console.warn('🔒 인증 만료. 로그인 페이지로 이동합니다.');
-            window.location.href = '/login';
-            return;
+    class ApiError extends Error {
+        constructor(message, options = {}) {
+            super(message);
+            this.name = 'ApiError';
+            this.status = options.status || 0;
+            this.code = options.code || '';
+            this.category = options.category || 'unknown';
+            this.details = options.details || null;
+            this.raw = options.raw;
         }
-
-        // 응답 처리
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({
-                message: `HTTP ${response.status}`
-            }));
-            throw new Error(error.message || error.detail || 'API 요청 실패');
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error(`API 요청 실패 [${endpoint}]:`, error);
-        throw error;
     }
-}
 
-// ============================================================
-// 인증 API
-// ============================================================
-
-// 회원가입
-async function signup(email, password, nickname) {
-    return apiRequest('/auth/signup', {
-        method: 'POST',
-        body: JSON.stringify({ email, password, nickname })
-    });
-}
-
-// 이메일 중복 확인
-async function checkEmail(email) {
-    return apiRequest('/auth/check-email', {
-        method: 'POST',
-        body: JSON.stringify({ email })
-    });
-}
-
-// 로그인
-async function login(email, password) {
-    return apiRequest('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password })
-    });
-}
-
-// 로그아웃
-async function logout() {
-    return apiRequest('/auth/logout', {
-        method: 'POST'
-    });
-}
-
-// 내 정보 조회
-async function getMe() {
-    return apiRequest('/users/me');
-}
-
-// ============================================================
-// 게시글 API
-// ============================================================
-
-// 게시글 목록 조회
-async function getPosts(page = 1, limit = 10) {
-    return apiRequest(`/posts?page=${page}&limit=${limit}&t=${Date.now()}`);
-}
-
-// 게시글 상세 조회
-async function getPost(postId) {
-    return apiRequest(`/posts/${postId}`);
-}
-
-// 게시글 작성
-async function createPost(title, content, imageUrl = null) {
-    return apiRequest('/posts', {
-        method: 'POST',
-        body: JSON.stringify({ title, content, image_url: imageUrl })
-    });
-}
-
-// 게시글 수정
-async function updatePost(postId, title, content, imageUrl = null) {
-    return apiRequest(`/posts/${postId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ title, content, image_url: imageUrl })
-    });
-}
-
-// 게시글 삭제
-async function deletePost(postId) {
-    return apiRequest(`/posts/${postId}`, {
-        method: 'DELETE'
-    });
-}
-
-// ============================================================
-// 좋아요 API
-// ============================================================
-
-// 좋아요
-async function likePost(postId) {
-    return apiRequest(`/posts/${postId}/likes`, {
-        method: 'POST'
-    });
-}
-
-// 좋아요 취소
-async function unlikePost(postId) {
-    return apiRequest(`/posts/${postId}/likes`, {
-        method: 'DELETE'
-    });
-}
-
-// ============================================================
-// 댓글 API
-// ============================================================
-
-// 댓글 목록 조회
-async function getComments(postId) {
-    return apiRequest(`/posts/${postId}/comments`);
-}
-
-// 댓글 작성
-async function createComment(postId, content) {
-    return apiRequest(`/posts/${postId}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ content })
-    });
-}
-
-// 댓글 수정
-// 댓글 수정
-async function updateComment(postId, commentId, content) {
-    return apiRequest(`/posts/${postId}/comments/${commentId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ content })
-    });
-}
-
-// 댓글 삭제
-// 댓글 삭제
-async function deleteComment(postId, commentId) {
-    return apiRequest(`/posts/${postId}/comments/${commentId}`, {
-        method: 'DELETE'
-    });
-}
-
-// ============================================================
-// 프로필 API
-// ============================================================
-
-// 프로필 수정
-async function updateProfile(nickname, profileImageUrl = null) {
-    return apiRequest('/users/me', {
-        method: 'PATCH',
-        body: JSON.stringify({ nickname, profile_image_url: profileImageUrl })
-    });
-}
-
-// 비밀번호 변경 (current_password 필수)
-// 401 에러를 리다이렉트 대신 에러로 처리 (현재 비밀번호 틀림)
-async function changePassword(currentPassword, newPassword) {
-    const url = `${API_URL}/users/me/password`;
-
-    try {
-        const response = await fetch(url, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
+    function createMemoryStorage() {
+        const store = new Map();
+        return {
+            getItem(key) {
+                return store.has(key) ? store.get(key) : null;
             },
-            credentials: 'include',
-            body: JSON.stringify({
-                current_password: currentPassword,
-                new_password: newPassword
+            setItem(key, value) {
+                store.set(key, String(value));
+            },
+            removeItem(key) {
+                store.delete(key);
+            }
+        };
+    }
+
+    function getStorage(storageName) {
+        try {
+            if (globalScope[storageName]) {
+                return globalScope[storageName];
+            }
+        } catch (error) {
+            // Ignore and fallback.
+        }
+        return createMemoryStorage();
+    }
+
+    const localStore = getStorage('localStorage');
+    const sessionStore = getStorage('sessionStorage');
+
+    function debugLog(...args) {
+        if (IS_DEV) {
+            console.log('[api]', ...args);
+        }
+    }
+
+    function toApiUrl(pathOrUrl) {
+        if (!pathOrUrl) return pathOrUrl;
+        if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+        return `${API_URL}${pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`}`;
+    }
+
+    const authState = {
+        accessToken: localStore.getItem(STORAGE_KEYS.accessToken),
+        refreshToken: localStore.getItem(STORAGE_KEYS.refreshToken),
+        expiresAt: Number(localStore.getItem(STORAGE_KEYS.expiresAt) || 0),
+        user: null
+    };
+
+    let refreshInFlight = null;
+
+    function persistTokens() {
+        if (authState.accessToken) {
+            localStore.setItem(STORAGE_KEYS.accessToken, authState.accessToken);
+        } else {
+            localStore.removeItem(STORAGE_KEYS.accessToken);
+        }
+
+        if (authState.refreshToken) {
+            localStore.setItem(STORAGE_KEYS.refreshToken, authState.refreshToken);
+        } else {
+            localStore.removeItem(STORAGE_KEYS.refreshToken);
+        }
+
+        if (authState.expiresAt) {
+            localStore.setItem(STORAGE_KEYS.expiresAt, String(authState.expiresAt));
+        } else {
+            localStore.removeItem(STORAGE_KEYS.expiresAt);
+        }
+    }
+
+    function setTokens(tokenPayload = {}) {
+        const nextAccessToken = tokenPayload.access_token || tokenPayload.accessToken || null;
+        const nextRefreshToken = tokenPayload.refresh_token || tokenPayload.refreshToken || null;
+        const expiresIn = Number(tokenPayload.expires_in || tokenPayload.expiresIn || 0);
+
+        authState.accessToken = nextAccessToken;
+        authState.refreshToken = nextRefreshToken || authState.refreshToken;
+        authState.expiresAt = expiresIn > 0 ? Date.now() + (expiresIn * 1000) : 0;
+        persistTokens();
+    }
+
+    function clearAuthState() {
+        authState.accessToken = null;
+        authState.refreshToken = null;
+        authState.expiresAt = 0;
+        authState.user = null;
+        persistTokens();
+    }
+
+    function setCurrentUser(user) {
+        authState.user = user || null;
+    }
+
+    function getCurrentUser() {
+        return authState.user;
+    }
+
+    function getAuthTokens() {
+        return {
+            accessToken: authState.accessToken,
+            refreshToken: authState.refreshToken,
+            expiresAt: authState.expiresAt
+        };
+    }
+
+    function isAuthenticated() {
+        return Boolean(authState.accessToken);
+    }
+
+    function isAccessTokenExpired() {
+        if (!authState.expiresAt) return false;
+        return Date.now() >= (authState.expiresAt - 5000);
+    }
+
+    function shouldRedirectToLogin() {
+        const pathname = globalScope.location && globalScope.location.pathname
+            ? globalScope.location.pathname
+            : '';
+        return AUTH_FREE_PATHS.every((path) => !pathname.startsWith(path));
+    }
+
+    function markAuthNotice(message) {
+        try {
+            sessionStore.setItem(SESSION_KEYS.authNotice, message);
+        } catch (error) {
+            // Ignore storage edge-cases.
+        }
+    }
+
+    function popAuthNotice() {
+        try {
+            const notice = sessionStore.getItem(SESSION_KEYS.authNotice);
+            if (notice) {
+                sessionStore.removeItem(SESSION_KEYS.authNotice);
+            }
+            return notice;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function inferErrorCategory(status, code) {
+        if (status === 401 || code === 'token_expired' || code === 'token_invalid' || code === 'invalid_token') {
+            return 'auth';
+        }
+        if (status === 403 || code === 'forbidden' || code === 'permission_denied') {
+            return 'forbidden';
+        }
+        if (status === 400 || status === 422 || code === 'validation_error') {
+            return 'validation';
+        }
+        if (status >= 500) {
+            return 'server';
+        }
+        if (status === 0) {
+            return 'network';
+        }
+        return 'unknown';
+    }
+
+    function getMappedMessage(code, fallback, status) {
+        if (code && MESSAGE_MAP[code]) {
+            return MESSAGE_MAP[code];
+        }
+
+        if (status === 401) return '로그인이 필요합니다.';
+        if (status === 403) return '이 작업을 수행할 권한이 없습니다.';
+        if (status === 400 || status === 422) return '입력값을 확인해 주세요.';
+        if (status >= 500) return '서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.';
+
+        return fallback || '요청 처리 중 오류가 발생했습니다.';
+    }
+
+    function normalizeApiError(payload, status) {
+        const code = (payload && (payload.message || payload.code)) || '';
+        const serverMessage = payload && (payload.detail || payload.error || payload.message);
+        const message = getMappedMessage(code, serverMessage, status);
+        return new ApiError(message, {
+            status,
+            code,
+            category: inferErrorCategory(status, code),
+            details: payload && payload.data ? payload.data : null,
+            raw: payload
+        });
+    }
+
+    async function parseResponseBody(response) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            return response.json();
+        }
+
+        const text = await response.text();
+        if (!text) return null;
+
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            return { message: text };
+        }
+    }
+
+    function buildRequestBody(body, headers) {
+        if (body === undefined || body === null) {
+            return null;
+        }
+
+        if (typeof FormData !== 'undefined' && body instanceof FormData) {
+            return body;
+        }
+
+        if (typeof body === 'string') {
+            if (!headers['Content-Type']) {
+                headers['Content-Type'] = 'application/json';
+            }
+            return body;
+        }
+
+        if (!headers['Content-Type']) {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        return JSON.stringify(body);
+    }
+
+    async function refreshAccessToken() {
+        if (!authState.refreshToken) {
+            return false;
+        }
+
+        if (refreshInFlight) {
+            return refreshInFlight;
+        }
+
+        refreshInFlight = (async () => {
+            const response = await request('/auth/refresh', {
+                method: 'POST',
+                body: { refresh_token: authState.refreshToken },
+                auth: false,
+                retry: false,
+                suppressAuthRedirect: true
+            });
+
+            const tokenData = response && response.data ? response.data : response;
+            if (!tokenData || !tokenData.access_token) {
+                throw new ApiError('토큰 재발급에 실패했습니다.', {
+                    status: 401,
+                    code: 'token_invalid',
+                    category: 'auth'
+                });
+            }
+
+            setTokens(tokenData);
+            return true;
+        })()
+            .catch((error) => {
+                clearAuthState();
+                throw error;
             })
+            .finally(() => {
+                refreshInFlight = null;
+            });
+
+        return refreshInFlight;
+    }
+
+    function handleAuthExpiredRedirect() {
+        clearAuthState();
+        markAuthNotice('로그인이 만료되었습니다. 다시 로그인해 주세요.');
+
+        if (shouldRedirectToLogin() && globalScope.location) {
+            globalScope.location.href = '/login';
+        }
+    }
+
+    async function request(endpoint, options = {}) {
+        const {
+            method = 'GET',
+            headers = {},
+            body,
+            auth = true,
+            retry = true,
+            suppressAuthRedirect = false
+        } = options;
+
+        try {
+            // Boot restoration shortcut: if access token is missing or expired but refresh token exists.
+            if (auth && authState.refreshToken && (!authState.accessToken || isAccessTokenExpired())) {
+                try {
+                    await refreshAccessToken();
+                } catch (error) {
+                    if (!suppressAuthRedirect) {
+                        handleAuthExpiredRedirect();
+                    }
+                    throw error;
+                }
+            }
+
+            const requestHeaders = { ...headers };
+            const requestBody = buildRequestBody(body, requestHeaders);
+
+            if (auth && authState.accessToken) {
+                requestHeaders.Authorization = `Bearer ${authState.accessToken}`;
+            }
+
+            const response = await fetch(toApiUrl(endpoint), {
+                method,
+                headers: requestHeaders,
+                body: requestBody
+            });
+
+            const payload = await parseResponseBody(response);
+
+            if (response.status === 401 && auth && retry) {
+                try {
+                    await refreshAccessToken();
+                    return request(endpoint, {
+                        ...options,
+                        retry: false
+                    });
+                } catch (error) {
+                    if (!suppressAuthRedirect) {
+                        handleAuthExpiredRedirect();
+                    }
+                    throw normalizeApiError(payload || { message: 'token_expired' }, 401);
+                }
+            }
+
+            if (!response.ok) {
+                throw normalizeApiError(payload || {}, response.status);
+            }
+
+            return payload;
+        } catch (error) {
+            if (error instanceof ApiError) {
+                throw error;
+            }
+
+            throw new ApiError('네트워크 연결을 확인해 주세요.', {
+                status: 0,
+                code: 'network_error',
+                category: 'network',
+                raw: error
+            });
+        }
+    }
+
+    async function ensureAuthenticated(options = {}) {
+        const { redirect = true } = options;
+
+        if (authState.accessToken && !isAccessTokenExpired()) {
+            return true;
+        }
+
+        if (!authState.refreshToken) {
+            if (redirect && shouldRedirectToLogin() && globalScope.location) {
+                globalScope.location.href = '/login';
+            }
+            return false;
+        }
+
+        try {
+            await refreshAccessToken();
+            return true;
+        } catch (error) {
+            if (redirect && shouldRedirectToLogin() && globalScope.location) {
+                handleAuthExpiredRedirect();
+            }
+            return false;
+        }
+    }
+
+    async function bootstrapSession() {
+        const restored = await ensureAuthenticated({ redirect: false });
+        if (!restored) return false;
+
+        try {
+            const meResponse = await getMe();
+            setCurrentUser(meResponse && meResponse.data ? meResponse.data : meResponse);
+        } catch (error) {
+            // If /users/me fails after token restoration, caller pages can still retry.
+            debugLog('Failed to hydrate current user during bootstrap:', error.message);
+        }
+
+        return true;
+    }
+
+    function normalizeTags(tags) {
+        if (!Array.isArray(tags)) return [];
+        return [...new Set(tags
+            .map((tag) => String(tag || '').trim().replace(/^#/, ''))
+            .filter(Boolean)
+        )];
+    }
+
+    // =========================
+    // Auth API
+    // =========================
+
+    async function signup(email, password, nickname) {
+        return request('/auth/signup', {
+            method: 'POST',
+            body: { email, password, nickname },
+            auth: false
+        });
+    }
+
+    async function checkEmail(email) {
+        return request('/auth/check-email', {
+            method: 'POST',
+            body: { email },
+            auth: false
+        });
+    }
+
+    async function login(email, password) {
+        const response = await request('/auth/login', {
+            method: 'POST',
+            body: { email, password },
+            auth: false,
+            suppressAuthRedirect: true
         });
 
-        // 401은 현재 비밀번호 틀림으로 처리 (리다이렉트 안함)
-        if (response.status === 401) {
-            throw new Error('현재 비밀번호가 올바르지 않습니다');
+        const tokenData = response && response.data ? response.data : response;
+        if (!tokenData || !tokenData.access_token) {
+            throw new ApiError('로그인 응답 형식이 올바르지 않습니다.', {
+                status: 500,
+                code: 'invalid_login_response',
+                category: 'server'
+            });
         }
 
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({
-                message: `HTTP ${response.status}`
-            }));
-            throw new Error(error.message || '비밀번호 변경 실패');
+        setTokens(tokenData);
+
+        try {
+            const meResponse = await getMe();
+            setCurrentUser(meResponse && meResponse.data ? meResponse.data : meResponse);
+        } catch (error) {
+            debugLog('Failed to hydrate user right after login:', error.message);
         }
 
-        return await response.json();
-    } catch (error) {
-        console.error('Password change error:', error);
-        throw error;
+        return response;
     }
-}
 
-// 회원탈퇴
-async function withdrawUser() {
-    return apiRequest('/users/me', {
-        method: 'DELETE'
-    });
-}
+    async function logout(refreshToken = authState.refreshToken) {
+        try {
+            await request('/auth/logout', {
+                method: 'POST',
+                body: refreshToken ? { refresh_token: refreshToken } : {},
+                auth: false,
+                retry: false,
+                suppressAuthRedirect: true
+            });
+        } catch (error) {
+            debugLog('logout request failed (clearing local auth anyway):', error.message);
+        } finally {
+            clearAuthState();
+        }
 
-// ============================================================
-// 이미지 업로드 API
-// ============================================================
+        return {
+            message: 'logout_success',
+            data: null
+        };
+    }
 
-// 이미지 업로드
-async function uploadImage(file, type = 'profile') {
-    try {
+    async function getMe() {
+        return request('/users/me');
+    }
+
+    // =========================
+    // Posts API
+    // =========================
+
+    async function getPosts(page = 1, limit = 10, sort = 'latest', tag = '') {
+        const params = new URLSearchParams();
+        params.set('page', String(page));
+        params.set('limit', String(limit));
+        params.set('sort', sort || 'latest');
+        if (tag) {
+            params.set('tag', tag);
+        }
+        return request(`/posts?${params.toString()}`);
+    }
+
+    async function getTrendingPosts(days = 7, limit = 5) {
+        const params = new URLSearchParams();
+        params.set('days', String(days));
+        params.set('limit', String(limit));
+        return request(`/posts/trending?${params.toString()}`);
+    }
+
+    async function getPost(postId) {
+        return request(`/posts/${postId}`);
+    }
+
+    async function createPost(title, content, imageUrl = null, tags = []) {
+        return request('/posts', {
+            method: 'POST',
+            body: {
+                title,
+                content,
+                image_url: imageUrl || null,
+                tags: normalizeTags(tags)
+            }
+        });
+    }
+
+    async function updatePost(postId, title, content, imageUrl = null, tags = undefined) {
+        const body = {
+            title,
+            content,
+            image_url: imageUrl || null
+        };
+
+        if (Array.isArray(tags)) {
+            body.tags = normalizeTags(tags);
+        }
+
+        return request(`/posts/${postId}`, {
+            method: 'PUT',
+            body
+        });
+    }
+
+    async function deletePost(postId) {
+        return request(`/posts/${postId}`, {
+            method: 'DELETE'
+        });
+    }
+
+    async function likePost(postId) {
+        return request(`/posts/${postId}/likes`, {
+            method: 'POST'
+        });
+    }
+
+    async function unlikePost(postId) {
+        return request(`/posts/${postId}/likes`, {
+            method: 'DELETE'
+        });
+    }
+
+    // =========================
+    // Comments API
+    // =========================
+
+    async function getComments(postId) {
+        return request(`/posts/${postId}/comments`);
+    }
+
+    async function createComment(postId, content) {
+        return request(`/posts/${postId}/comments`, {
+            method: 'POST',
+            body: { content }
+        });
+    }
+
+    async function updateComment(postId, commentId, content) {
+        return request(`/posts/${postId}/comments/${commentId}`, {
+            method: 'PUT',
+            body: { content }
+        });
+    }
+
+    async function deleteComment(postId, commentId) {
+        return request(`/posts/${postId}/comments/${commentId}`, {
+            method: 'DELETE'
+        });
+    }
+
+    // =========================
+    // User/Profile API
+    // =========================
+
+    async function updateProfile(nickname, profileImageUrl = null) {
+        return request('/users/me', {
+            method: 'PATCH',
+            body: {
+                nickname,
+                profile_image_url: profileImageUrl
+            }
+        });
+    }
+
+    async function changePassword(currentPassword, newPassword) {
+        return request('/users/me/password', {
+            method: 'PATCH',
+            body: {
+                current_password: currentPassword,
+                new_password: newPassword
+            }
+        });
+    }
+
+    async function withdrawUser() {
+        return request('/users/me', {
+            method: 'DELETE'
+        });
+    }
+
+    // =========================
+    // Images API
+    // =========================
+
+    async function uploadImage(file, type = 'profile') {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch(`${API_URL}/images/${type}`, {
+        return request(`/images/${type}`, {
             method: 'POST',
-            credentials: 'include',
             body: formData
-            // Content-Type은 브라우저가 자동 설정 (multipart/form-data)
         });
-
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({
-                message: '이미지 업로드 실패'
-            }));
-            throw new Error(error.message);
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error('Upload error:', error);
-        throw error;
     }
-}
+
+    const publicApi = {
+        API_URL,
+        ApiError,
+        request,
+        apiRequest: request,
+        signup,
+        checkEmail,
+        login,
+        logout,
+        getMe,
+        getPosts,
+        getTrendingPosts,
+        getPost,
+        createPost,
+        updatePost,
+        deletePost,
+        likePost,
+        unlikePost,
+        getComments,
+        createComment,
+        updateComment,
+        deleteComment,
+        updateProfile,
+        changePassword,
+        withdrawUser,
+        uploadImage,
+        normalizeTags,
+        toApiUrl,
+        getMappedMessage,
+        ensureAuthenticated,
+        bootstrapSession,
+        getAuthTokens,
+        isAuthenticated,
+        setCurrentUser,
+        getCurrentUser,
+        popAuthNotice,
+        clearAuthState
+    };
+
+    Object.assign(globalScope, publicApi);
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = publicApi;
+    }
+})(typeof window !== 'undefined' ? window : globalThis);

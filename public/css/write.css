@@ -25,6 +25,13 @@
     flex-direction: column;
 }
 
+.form-helper {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
 /* ==================== Image Upload ==================== */
 .image-upload {
     margin-bottom: 24px;
