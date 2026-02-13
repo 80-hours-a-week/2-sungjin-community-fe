@@ -1,260 +1,208 @@
-
-
 let currentPostId = null;
-let isAuthor = false;
 let currentCommentId = null;
 
-document.addEventListener('DOMContentLoaded', function () {
-    // 헤더 프로필 이미지 로드
-    loadHeaderProfile();
+document.addEventListener('DOMContentLoaded', async () => {
+    const isReady = await ensureAuthenticated();
+    if (!isReady) return;
 
     const pathParts = window.location.pathname.split('/');
     currentPostId = pathParts[pathParts.length - 1];
 
-    if (currentPostId) {
-        loadPostDetail();
-        loadComments();
-    }
+    bindHeaderMenu();
+    bindActionButtons();
+    bindModalEvents();
+    bindCommentDelegation();
 
-    // --- Event Listeners (Refactoring #6) ---
-    const btnEditPost = document.getElementById('btnEditPost');
-    if (btnEditPost) btnEditPost.addEventListener('click', editPost);
-
-    const btnDeletePost = document.getElementById('btnDeletePost');
-    if (btnDeletePost) btnDeletePost.addEventListener('click', showDeleteModal);
-
-    const likeButton = document.getElementById('likeButton');
-    if (likeButton) likeButton.addEventListener('click', toggleLike);
-
-    const btnSubmitComment = document.getElementById('btnSubmitComment');
-    if (btnSubmitComment) btnSubmitComment.addEventListener('click', submitComment);
-
-    // Modals
-    const btnConfirmDelete = document.getElementById('btnConfirmDelete');
-    if (btnConfirmDelete) btnConfirmDelete.addEventListener('click', confirmDelete);
-
-    const btnCancelDelete = document.getElementById('btnCancelDelete');
-    if (btnCancelDelete) btnCancelDelete.addEventListener('click', closeDeleteModal);
-
-    const btnConfirmCommentModal = document.getElementById('btnConfirmCommentModal');
-    if (btnConfirmCommentModal) btnConfirmCommentModal.addEventListener('click', confirmDeleteComment);
-
-    const btnCancelCommentModal = document.getElementById('btnCancelCommentModal');
-    if (btnCancelCommentModal) btnCancelCommentModal.addEventListener('click', closeCommentModal);
-
-    // Modal Backdrop Click
-    ['deleteModal', 'commentModal'].forEach(id => {
-        const modal = document.getElementById(id);
-        if (modal) {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) modal.style.display = 'none';
-            });
-        }
-    });
-
-    // Comment Delegation
-    const commentsList = document.getElementById('commentsList');
-    if (commentsList) {
-        commentsList.addEventListener('click', (e) => {
-            const editBtn = e.target.closest('.btn-comment-edit');
-            const deleteBtn = e.target.closest('.btn-comment-delete');
-            if (editBtn) editComment(editBtn.dataset.id);
-            if (deleteBtn) showDeleteCommentModal(deleteBtn.dataset.id);
-        });
-    }
-    // ----------------------------------------
-
-    const btnMenu = document.getElementById('btnMenu');
-    const dropdownMenu = document.getElementById('dropdownMenu');
-
-    if (btnMenu && dropdownMenu) {
-        btnMenu.addEventListener('click', function (e) {
-            e.stopPropagation();
-            dropdownMenu.classList.toggle('show');
-        });
-
-        document.addEventListener('click', function () {
-            dropdownMenu.classList.remove('show');
-        });
-    }
+    await Promise.all([
+        loadHeaderProfile(),
+        loadPostDetail(),
+        loadComments()
+    ]);
 });
 
-/**
- * 헤더 프로필 이미지 로드
- */
+function bindHeaderMenu() {
+    const btnMenu = document.getElementById('btnMenu');
+    const dropdownMenu = document.getElementById('dropdownMenu');
+    if (!btnMenu || !dropdownMenu) return;
+
+    btnMenu.addEventListener('click', (event) => {
+        event.stopPropagation();
+        dropdownMenu.classList.toggle('show');
+    });
+
+    document.addEventListener('click', () => {
+        dropdownMenu.classList.remove('show');
+    });
+}
+
+function bindActionButtons() {
+    const btnEditPost = document.getElementById('btnEditPost');
+    const btnDeletePost = document.getElementById('btnDeletePost');
+    const likeButton = document.getElementById('likeButton');
+    const btnSubmitComment = document.getElementById('btnSubmitComment');
+
+    if (btnEditPost) btnEditPost.addEventListener('click', () => navigateTo(`/posts/${currentPostId}/edit`));
+    if (btnDeletePost) btnDeletePost.addEventListener('click', showDeleteModal);
+    if (likeButton) likeButton.addEventListener('click', toggleLike);
+    if (btnSubmitComment) btnSubmitComment.addEventListener('click', submitComment);
+}
+
+function bindModalEvents() {
+    const btnConfirmDelete = document.getElementById('btnConfirmDelete');
+    const btnCancelDelete = document.getElementById('btnCancelDelete');
+    const btnConfirmCommentModal = document.getElementById('btnConfirmCommentModal');
+    const btnCancelCommentModal = document.getElementById('btnCancelCommentModal');
+
+    if (btnConfirmDelete) btnConfirmDelete.addEventListener('click', confirmDeletePost);
+    if (btnCancelDelete) btnCancelDelete.addEventListener('click', closeDeleteModal);
+    if (btnConfirmCommentModal) btnConfirmCommentModal.addEventListener('click', confirmDeleteComment);
+    if (btnCancelCommentModal) btnCancelCommentModal.addEventListener('click', closeCommentModal);
+
+    ['deleteModal', 'commentModal'].forEach((modalId) => {
+        const modal = document.getElementById(modalId);
+        if (!modal) return;
+
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    });
+}
+
+function bindCommentDelegation() {
+    const commentsList = document.getElementById('commentsList');
+    if (!commentsList) return;
+
+    commentsList.addEventListener('click', (event) => {
+        const editButton = event.target.closest('.btn-comment-edit');
+        const deleteButton = event.target.closest('.btn-comment-delete');
+
+        if (editButton) {
+            editComment(editButton.dataset.id);
+        }
+
+        if (deleteButton) {
+            showDeleteCommentModal(deleteButton.dataset.id);
+        }
+    });
+}
+
 async function loadHeaderProfile() {
     try {
         const response = await getMe();
-        const user = response.data || response;
-
+        const user = response && response.data ? response.data : response;
         const headerImage = document.getElementById('headerProfileImage');
-        if (headerImage && user.profile_image_url) {
-            let imageUrl = user.profile_image_url;
-            if (imageUrl.startsWith('/')) {
-                imageUrl = `http://localhost:8000${imageUrl}`;
-            }
-            headerImage.src = imageUrl;
-            headerImage.onerror = function () {
-                this.src = '/images/default-profile.png';
-            };
-        }
+
+        if (!headerImage) return;
+        headerImage.src = resolveImageUrl(user && user.profile_image_url, '/images/default-profile.png');
+        headerImage.onerror = function onHeaderImageError() {
+            this.src = '/images/default-profile.png';
+        };
     } catch (error) {
-        console.log('헤더 프로필 로드 실패:', error);
+        console.debug('Failed to load header profile image:', error.message);
     }
 }
-
 
 async function loadPostDetail() {
     try {
-        console.log('📄 게시글 상세 로드:', currentPostId);
-
-
         const response = await getPost(currentPostId);
+        const post = response && response.data ? response.data : response;
 
-        console.log('✅ 게시글 응답:', response);
-
-
-        const post = response.data || response;
-
-        if (!post || !post.title) throw new Error('게시글을 찾을 수 없습니다');
-
-        console.log('✅ 게시글 데이터:', post);
-
+        if (!post || !post.title) {
+            throw new Error('게시글을 찾을 수 없습니다.');
+        }
 
         document.getElementById('postTitle').textContent = post.title;
-        document.getElementById('postBody').textContent = post.content;
+        document.getElementById('postBody').textContent = post.content || '';
+        document.getElementById('authorName').textContent = post.author_nickname || '익명';
+        document.getElementById('postDate').textContent = formatDate(post.created_at || new Date().toISOString());
 
-
-        if (post.author_nickname) {
-            document.getElementById('authorName').textContent = post.author_nickname;
+        const authorImage = document.getElementById('authorImage');
+        if (authorImage) {
+            authorImage.src = resolveImageUrl(post.author_profile_image, '/images/default-profile.png');
+            authorImage.onerror = function onAuthorImageError() {
+                this.src = '/images/default-profile.png';
+            };
         }
 
-
-        if (post.author_profile_image) {
-            let profileImageUrl = post.author_profile_image;
-            if (profileImageUrl.startsWith('/')) {
-
-                profileImageUrl = `http://localhost:8000${profileImageUrl}`;
-            }
-
-            const authorImage = document.getElementById('authorImage');
-            if (authorImage) {
-                authorImage.src = profileImageUrl;
-                authorImage.onerror = function () {
-                    this.src = '/images/default-profile.png';
-                };
-            }
+        const postImage = document.getElementById('postImage');
+        if (postImage && post.image_url) {
+            postImage.innerHTML = `<img src="${escapeHtml(resolveImageUrl(post.image_url))}" alt="게시글 이미지">`;
+            postImage.style.display = 'block';
         }
 
+        document.getElementById('viewCount').textContent = String(post.view_count || post.views || 0);
+        document.getElementById('likeCount').textContent = String(post.likes_count || 0);
+        document.getElementById('commentCount').textContent = String(post.comments_count || 0);
 
-        document.getElementById('postDate').textContent = formatDate(post.created_at);
-
-
-        if (post.image_url) {
-            let imageUrl = post.image_url;
-            if (imageUrl.startsWith('/')) {
-                imageUrl = `http://localhost:8000${imageUrl}`;
-            }
-            const imageDiv = document.getElementById('postImage');
-            imageDiv.innerHTML = `<img src="${imageUrl}" alt="게시글 이미지">`;
-            imageDiv.style.display = 'block';
+        const likeButton = document.getElementById('likeButton');
+        const likeText = document.getElementById('likeText');
+        if (post.is_liked && likeButton && likeText) {
+            likeButton.classList.add('active');
+            likeText.textContent = '좋아요 취소';
         }
 
-
-        document.getElementById('viewCount').textContent = post.views || 0;
-        document.getElementById('likeCount').textContent = post.likes_count || 0;
-        document.getElementById('commentCount').textContent = post.comments_count || 0;
-
-
-        if (post.is_liked) {
-            document.getElementById('likeButton').classList.add('active');
-            document.getElementById('likeText').textContent = '좋아요 취소';
+        const postActions = document.getElementById('postActions');
+        if (post.is_author && postActions) {
+            postActions.style.display = 'flex';
         }
-
-
-        if (post.is_author) {
-            isAuthor = true;
-            document.getElementById('postActions').style.display = 'flex';
-        }
-
     } catch (error) {
-        console.error('Failed to load post:', error);
-
-        const dummyPost = await fetchDummyPost(currentPostId);
-        if (dummyPost) {
-            document.getElementById('postTitle').textContent = dummyPost.title;
-            document.getElementById('postBody').textContent = dummyPost.body;
-            document.getElementById('authorName').textContent = `User ${dummyPost.userId}`;
-            document.getElementById('postDate').textContent = formatDate(new Date());
-        }
+        handleApiError(error, {
+            fallbackMessage: '게시글을 불러오지 못했습니다.'
+        });
+        navigateTo('/posts');
     }
 }
-
 
 async function loadComments() {
     const container = document.getElementById('commentsList');
+    if (!container) return;
 
     try {
-        console.log('💬 댓글 목록 로드:', currentPostId);
-
-
         const response = await getComments(currentPostId);
-
-        console.log('✅ 댓글 응답:', response);
-
-
-        let comments = [];
-        if (Array.isArray(response)) {
-            comments = response;
-        } else if (response.data) {
-            comments = Array.isArray(response.data) ? response.data : [];
-        }
-
-        console.log('✅ 댓글 배열:', comments);
-
-        renderComments(comments);
-
+        const comments = extractComments(response);
+        renderComments(comments, container);
     } catch (error) {
-        console.error('❌ 댓글 로드 실패:', error);
-
-        const dummyComments = await fetchDummyComments(currentPostId);
-        renderComments(dummyComments);
+        container.innerHTML = '<div class="loading">댓글을 불러오지 못했습니다.</div>';
+        handleApiError(error, {
+            fallbackMessage: '댓글을 불러오는 중 오류가 발생했습니다.'
+        });
     }
 }
 
+function extractComments(response) {
+    if (!response) return [];
+    if (Array.isArray(response.data)) return response.data;
+    if (Array.isArray(response)) return response;
+    return [];
+}
 
-function renderComments(comments) {
-    const container = document.getElementById('commentsList');
-    container.innerHTML = '';
-
-    if (!Array.isArray(comments) || comments.length === 0) {
-        container.innerHTML = '<div class="loading">댓글이 없습니다</div>';
+function renderComments(comments, container) {
+    if (!comments.length) {
+        container.innerHTML = '<div class="loading">댓글이 없습니다.</div>';
         return;
     }
 
-    comments.forEach(comment => {
-        const commentItem = document.createElement('div');
-        commentItem.className = 'comment-item';
+    container.innerHTML = '';
 
-        const isMyComment = comment.is_author || false;
+    comments.forEach((comment) => {
+        const isMyComment = Boolean(comment.is_author);
+        const item = document.createElement('div');
+        item.className = 'comment-item';
 
-        // 프로필 이미지
-        let profileImageUrl = '/images/default-profile.png';
-        if (comment.author_profile_image) {
-            if (comment.author_profile_image.startsWith('/')) {
-                profileImageUrl = `http://localhost:8000${comment.author_profile_image}`;
-            } else {
-                profileImageUrl = comment.author_profile_image;
-            }
-        }
-
-        commentItem.innerHTML = `
+        item.innerHTML = `
             <div class="comment-header">
                 <div class="comment-author">
-                    <img src="${profileImageUrl}" alt="프로필" class="comment-avatar" onerror="this.src='/images/default-profile.png'">
+                    <img
+                        src="${escapeHtml(resolveImageUrl(comment.author_profile_image, '/images/default-profile.png'))}"
+                        alt="프로필"
+                        class="comment-avatar"
+                        onerror="this.src='/images/default-profile.png'"
+                    >
                     <div>
-                        <div class="comment-name">${comment.author_nickname || comment.name || `User ${comment.userId || comment.id}`}</div>
-                        <div class="comment-time">${formatDate(comment.created_at || new Date())}</div>
+                        <div class="comment-name">${escapeHtml(comment.author_nickname || '익명')}</div>
+                        <div class="comment-time">${escapeHtml(formatDate(comment.created_at || new Date().toISOString()))}</div>
                     </div>
                 </div>
                 ${isMyComment ? `
@@ -264,80 +212,70 @@ function renderComments(comments) {
                     </div>
                 ` : ''}
             </div>
-            <div class="comment-content">${escapeHtml(comment.content || comment.body)}</div>
+            <div class="comment-content">${escapeHtml(comment.content || '')}</div>
         `;
 
-        container.appendChild(commentItem);
+        container.appendChild(item);
     });
 }
-
 
 async function submitComment() {
     const input = document.getElementById('commentInput');
     const content = input.value.trim();
 
     if (!content) {
-        alert('댓글 내용을 입력해주세요');
+        showToast('댓글 내용을 입력해 주세요.');
         return;
     }
 
     try {
         await createComment(currentPostId, content);
-
-
         input.value = '';
-
-
-        loadComments();
-
+        await loadComments();
 
         const commentCount = document.getElementById('commentCount');
-        commentCount.textContent = parseInt(commentCount.textContent) + 1;
-
+        commentCount.textContent = String(Number(commentCount.textContent || 0) + 1);
     } catch (error) {
-        console.error('Failed to create comment:', error);
-        alert('댓글 작성에 실패했습니다');
+        handleApiError(error, {
+            fallbackMessage: '댓글 작성에 실패했습니다.'
+        });
     }
 }
 
-
 async function editComment(commentId) {
-    const newContent = prompt('댓글을 수정하세요:');
-
+    const newContent = window.prompt('댓글 내용을 수정해 주세요.');
     if (!newContent || !newContent.trim()) return;
 
     try {
         await updateComment(currentPostId, commentId, newContent.trim());
-        loadComments();
+        await loadComments();
     } catch (error) {
-        console.error('Failed to update comment:', error);
-        alert('댓글 수정에 실패했습니다');
+        handleApiError(error, {
+            fallbackMessage: '댓글 수정에 실패했습니다.'
+        });
     }
 }
-
 
 function showDeleteCommentModal(commentId) {
     currentCommentId = commentId;
     const modal = document.getElementById('commentModal');
-    // document.getElementById('commentModalMessage').textContent = '댓글을 삭제하시겠습니까?'; // Default is fine
-    // Remove inline onclick assignment. Listener is in init.
     if (modal) modal.style.display = 'flex';
 }
 
-
 async function confirmDeleteComment() {
+    if (!currentCommentId) return;
+
     try {
         await deleteComment(currentPostId, currentCommentId);
-
         closeCommentModal();
-        loadComments();
+        await loadComments();
 
         const commentCount = document.getElementById('commentCount');
-        commentCount.textContent = Math.max(0, parseInt(commentCount.textContent) - 1);
-
+        commentCount.textContent = String(Math.max(0, Number(commentCount.textContent || 0) - 1));
     } catch (error) {
-        console.error('Failed to delete comment:', error);
-        alert('댓글 삭제에 실패했습니다');
+        handleApiError(error, {
+            fallbackMessage: '댓글 삭제에 실패했습니다.'
+        });
     }
 }
 
@@ -357,15 +295,16 @@ function closeDeleteModal() {
     if (modal) modal.style.display = 'none';
 }
 
-async function confirmDelete() {
+async function confirmDeletePost() {
     try {
         await deletePost(currentPostId);
-        alert('게시글이 삭제되었습니다.');
-        window.location.href = '/posts';
+        showToast('게시글이 삭제되었습니다.');
+        navigateTo('/posts');
     } catch (error) {
-        console.error('Failed to delete post:', error);
-        alert('게시글 삭제에 실패했습니다.');
         closeDeleteModal();
+        handleApiError(error, {
+            fallbackMessage: '게시글 삭제에 실패했습니다.'
+        });
     }
 }
 
@@ -381,22 +320,22 @@ async function toggleLike() {
             await unlikePost(currentPostId);
             button.classList.remove('active');
             text.textContent = '좋아요';
-            count.textContent = Math.max(0, parseInt(count.textContent) - 1);
+            count.textContent = String(Math.max(0, Number(count.textContent || 0) - 1));
         } else {
             await likePost(currentPostId);
             button.classList.add('active');
             text.textContent = '좋아요 취소';
-            count.textContent = parseInt(count.textContent) + 1;
+            count.textContent = String(Number(count.textContent || 0) + 1);
         }
     } catch (error) {
-        console.error('Failed to toggle like:', error);
-        alert('좋아요 처리에 실패했습니다');
+        handleApiError(error, {
+            fallbackMessage: '좋아요 처리에 실패했습니다.'
+        });
     }
 }
 
-
-function editPost() {
-    window.location.href = `/posts/${currentPostId}/edit`;
+function resolveImageUrl(imageUrl, fallback = '') {
+    if (!imageUrl) return fallback;
+    if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
+    return typeof toApiUrl === 'function' ? toApiUrl(imageUrl) : imageUrl;
 }
-
-

@@ -1,31 +1,24 @@
 /**
- * 게시글 수정 페이지 로직
+ * Post edit page script
  */
-
-(function() {
+(function initEditPostPage() {
     let currentPostId = null;
     let uploadedImageFile = null;
     let existingImageUrl = null;
-    
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('✅ 게시글 수정 페이지 로드');
-        
-        // URL에서 게시글 ID 추출
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const isReady = await ensureAuthenticated();
+        if (!isReady) return;
+
         const pathParts = window.location.pathname.split('/');
         currentPostId = pathParts[2]; // /posts/:id/edit
-        
+
         if (!currentPostId) {
-            alert('게시글 ID를 찾을 수 없습니다.');
-            window.location.href = '/posts';
+            showToast('게시글 ID를 확인할 수 없습니다.');
+            navigateTo('/posts');
             return;
         }
-        
-        console.log('📝 수정할 게시글 ID:', currentPostId);
-        
-        // 기존 게시글 데이터 로드
-        loadPostData();
-        
-        // DOM 요소
+
         const form = document.getElementById('editForm');
         const btnBack = document.getElementById('btnBack');
         const imageInput = document.getElementById('image');
@@ -38,72 +31,52 @@
         const btnConfirmModal = document.getElementById('btnConfirmModal');
         const titleInput = document.getElementById('title');
         const contentInput = document.getElementById('content');
+        const tagsInput = document.getElementById('tags');
         const submitButton = document.getElementById('btnSubmit');
-        
-        // 드롭다운 메뉴
-        const btnMenu = document.getElementById('btnMenu');
-        const dropdownMenu = document.getElementById('dropdownMenu');
-        
-        if (btnMenu && dropdownMenu) {
-            btnMenu.addEventListener('click', function(e) {
-                e.stopPropagation();
-                dropdownMenu.classList.toggle('show');
-            });
-            
-            document.addEventListener('click', function() {
-                dropdownMenu.classList.remove('show');
-            });
+
+        bindDropdownMenu();
+        bindHeaderEvents();
+        await loadPostData();
+        checkFormValid();
+
+        function bindHeaderEvents() {
+            if (btnBack) {
+                btnBack.addEventListener('click', () => history.back());
+            }
+
+            titleInput.addEventListener('input', checkFormValid);
+            contentInput.addEventListener('input', checkFormValid);
         }
-        
-        // 뒤로가기 버튼
-        if (btnBack) {
-            btnBack.addEventListener('click', function() {
-                history.back();
-            });
-        }
-        
-        // 제목, 내용 입력 시 버튼 색상 변경
+
         function checkFormValid() {
             const title = titleInput.value.trim();
             const content = contentInput.value.trim();
-            
-            if (title && content) {
-                submitButton.style.background = '#7F6AEE';
-            } else {
-                submitButton.style.background = '#ACA0EB';
-            }
+            submitButton.style.background = title && content ? '#7F6AEE' : '#ACA0EB';
         }
-        
-        titleInput.addEventListener('input', checkFormValid);
-        contentInput.addEventListener('input', checkFormValid);
-        
-        // 이미지 선택
+
         if (imageInput) {
-            imageInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
+            imageInput.addEventListener('change', (event) => {
+                const file = event.target.files && event.target.files[0];
                 if (!file) return;
-                
-                // 파일 크기 체크 (5MB)
+
                 if (file.size > 5 * 1024 * 1024) {
-                    alert('이미지 크기는 5MB 이하여야 합니다.');
+                    showToast('이미지 크기는 5MB 이하여야 합니다.');
                     imageInput.value = '';
                     return;
                 }
-                
-                // 파일 타입 체크
+
                 if (!file.type.startsWith('image/')) {
-                    alert('이미지 파일만 업로드 가능합니다.');
+                    showToast('이미지 파일만 업로드 가능합니다.');
                     imageInput.value = '';
                     return;
                 }
-                
+
                 uploadedImageFile = file;
-                existingImageUrl = null; // 새 이미지로 대체
-                
-                // 미리보기
+                existingImageUrl = null;
+
                 const reader = new FileReader();
-                reader.onload = function(e) {
-                    if (previewImg) previewImg.src = e.target.result;
+                reader.onload = (readEvent) => {
+                    if (previewImg) previewImg.src = readEvent.target.result;
                     if (imagePreview) imagePreview.style.display = 'block';
                     if (imageLabel) imageLabel.textContent = '파일 선택';
                     if (currentImageName) currentImageName.textContent = file.name;
@@ -111,153 +84,146 @@
                 reader.readAsDataURL(file);
             });
         }
-        
-        // 이미지 제거 버튼
+
         if (btnRemoveImage) {
-            btnRemoveImage.addEventListener('click', function() {
-                removeImage();
-            });
+            btnRemoveImage.addEventListener('click', removeImage);
         }
-        
-        // 모달 확인 버튼
+
         if (btnConfirmModal) {
-            btnConfirmModal.addEventListener('click', function() {
-                // 게시글 상세 페이지로 이동
-                window.location.href = `/posts/${currentPostId}`;
+            btnConfirmModal.addEventListener('click', () => {
+                navigateTo(`/posts/${currentPostId}`);
             });
         }
-        
-        // 폼 제출
-        if (form) {
-            form.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                const title = titleInput.value.trim();
-                const content = contentInput.value.trim();
-                
-                // 검증
-                if (!title) {
-                    alert('제목을 입력해주세요.');
-                    return;
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const title = titleInput.value.trim();
+            const content = contentInput.value.trim();
+            const tags = parseTagsInput(tagsInput ? tagsInput.value : '');
+
+            if (!title) {
+                showToast('제목을 입력해 주세요.');
+                return;
+            }
+
+            if (!content) {
+                showToast('내용을 입력해 주세요.');
+                return;
+            }
+
+            submitButton.disabled = true;
+
+            try {
+                let nextImageUrl = existingImageUrl;
+
+                if (uploadedImageFile) {
+                    const uploadResult = await uploadImage(uploadedImageFile, 'post');
+                    nextImageUrl = uploadResult && uploadResult.data
+                        ? uploadResult.data.image_url
+                        : uploadResult.image_url;
                 }
-                
-                if (title.length > 26) {
-                    alert('제목은 26자 이하로 입력해주세요.');
-                    return;
+
+                await updatePost(currentPostId, title, content, nextImageUrl, tags);
+
+                if (confirmModal) {
+                    confirmModal.style.display = 'flex';
                 }
-                
-                if (!content) {
-                    alert('내용을 입력해주세요.');
-                    return;
-                }
-                
-                try {
-                    let imageUrl = existingImageUrl;
-                    
-                    // 새 이미지 업로드 (있는 경우)
-                    if (uploadedImageFile) {
-                        console.log('📤 이미지 업로드 중...');
-                        const uploadResult = await uploadImage(uploadedImageFile, 'post');
-                        imageUrl = uploadResult.data?.image_url || uploadResult.image_url;
-                        console.log('✅ 이미지 업로드 완료:', imageUrl);
-                    }
-                    
-                    // 게시글 수정 API 호출
-                    console.log('📤 게시글 수정 요청:', { title, content, imageUrl });
-                    await updatePost(currentPostId, title, content, imageUrl);
-                    
-                    console.log('✅ 게시글 수정 성공');
-                    
-                    // 성공 모달 표시
-                    if (confirmModal) {
-                        confirmModal.style.display = 'flex';
-                    }
-                    
-                } catch (error) {
-                    console.error('❌ 게시글 수정 실패:', error);
-                    alert('게시글 수정에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
-                }
-            });
-        }
+            } catch (error) {
+                handleApiError(error, {
+                    fallbackMessage: '게시글 수정에 실패했습니다.'
+                });
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
     });
-    
-    /**
-     * 기존 게시글 데이터 로드
-     */
+
     async function loadPostData() {
+        const titleInput = document.getElementById('title');
+        const contentInput = document.getElementById('content');
+        const tagsInput = document.getElementById('tags');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImg = document.getElementById('previewImg');
+        const currentImageName = document.getElementById('currentImageName');
+
         try {
-            console.log('📥 게시글 데이터 로드 중...');
-            
             const response = await getPost(currentPostId);
-            const post = response.data || response;
-            
-            console.log('✅ 게시글 데이터:', post);
-            
-            // 입력 필드에 기존 데이터 설정
-            const titleInput = document.getElementById('title');
-            const contentInput = document.getElementById('content');
-            const imagePreview = document.getElementById('imagePreview');
-            const previewImg = document.getElementById('previewImg');
-            const currentImageName = document.getElementById('currentImageName');
-            const submitButton = document.getElementById('btnSubmit');
-            
-            if (titleInput) titleInput.value = post.title || '';
-            if (contentInput) contentInput.value = post.content || '';
-            
-            // 기존 이미지가 있는 경우
+            const post = response && response.data ? response.data : response;
+
+            titleInput.value = post.title || '';
+            contentInput.value = post.content || '';
+            tagsInput.value = normalizePostTags(post.tags).join(', ');
+
             if (post.image_url) {
                 existingImageUrl = post.image_url;
-                
-                let imageUrl = post.image_url;
-                if (imageUrl.startsWith('/')) {
-                    imageUrl = `http://localhost:8000${imageUrl}`;
-                }
-                
-                if (previewImg) previewImg.src = imageUrl;
+                if (previewImg) previewImg.src = resolveImageUrl(post.image_url);
                 if (imagePreview) imagePreview.style.display = 'block';
-                if (currentImageName) currentImageName.textContent = '기존 파일 있음';
+                if (currentImageName) currentImageName.textContent = '기존 이미지';
             }
-            
-            // 버튼 색상 업데이트
-            if (post.title && post.content && submitButton) {
-                submitButton.style.background = '#7F6AEE';
-            }
-            
         } catch (error) {
-            console.error('❌ 게시글 로드 실패:', error);
-            alert('게시글을 불러오는데 실패했습니다.');
-            window.location.href = '/posts';
+            handleApiError(error, {
+                fallbackMessage: '게시글을 불러오지 못했습니다.'
+            });
+            navigateTo('/posts');
         }
     }
-    
-    /**
-     * 이미지 제거
-     */
+
+    function bindDropdownMenu() {
+        const btnMenu = document.getElementById('btnMenu');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+
+        if (!btnMenu || !dropdownMenu) return;
+
+        btnMenu.addEventListener('click', (event) => {
+            event.stopPropagation();
+            dropdownMenu.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => {
+            dropdownMenu.classList.remove('show');
+        });
+    }
+
     function removeImage() {
         uploadedImageFile = null;
         existingImageUrl = null;
-        
+
         const imageInput = document.getElementById('image');
         const imagePreview = document.getElementById('imagePreview');
         const imageLabel = document.getElementById('imageLabel');
         const currentImageName = document.getElementById('currentImageName');
-        
+
         if (imageInput) imageInput.value = '';
         if (imagePreview) imagePreview.style.display = 'none';
         if (imageLabel) imageLabel.textContent = '파일 선택';
         if (currentImageName) currentImageName.textContent = '';
     }
-    
-    /**
-     * 로그아웃
-     */
-    window.handleLogout = function() {
-        if (confirm('로그아웃 하시겠습니까?')) {
-            logout().then(() => {
-                window.location.href = '/login';
-            }).catch(() => {
-                window.location.href = '/login';
-            });
-        }
-    };
+
+    function parseTagsInput(value) {
+        if (!value) return [];
+        const tags = value
+            .split(',')
+            .map((tag) => tag.trim().replace(/^#/, ''))
+            .filter(Boolean);
+        return [...new Set(tags)].slice(0, 10);
+    }
+
+    function normalizePostTags(tags) {
+        if (!Array.isArray(tags)) return [];
+        return [...new Set(tags
+            .map((tag) => String(tag || '').trim().replace(/^#/, ''))
+            .filter(Boolean)
+        )];
+    }
+
+    function resolveImageUrl(imageUrl) {
+        if (!imageUrl) return '';
+        if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
+        return typeof toApiUrl === 'function' ? toApiUrl(imageUrl) : imageUrl;
+    }
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = { parseTagsInput, normalizePostTags };
+    }
 })();

@@ -11,7 +11,6 @@
 </head>
 
 <body>
-    <!-- 헤더 -->
     <header class="header-simple">
         <div class="header-container">
             <button class="btn-back" data-navigate="/">
@@ -22,8 +21,13 @@
             <h1 class="header-title">아무 말 대잔치</h1>
             <div class="dropdown-wrapper">
                 <button class="btn-menu" id="btnMenu">
-                    <img id="headerProfileImage" src="/images/default-profile.png" alt="프로필" class="header-profile-img"
-                        style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                    <img
+                        id="headerProfileImage"
+                        src="/images/default-profile.png"
+                        alt="프로필"
+                        class="header-profile-img"
+                        style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;"
+                    >
                 </button>
                 <div class="dropdown-menu" id="dropdownMenu">
                     <button data-navigate="/profile/edit">회원정보수정</button>
@@ -34,25 +38,56 @@
         </div>
     </header>
 
-    <!-- 메인 콘텐츠 -->
     <main class="posts-main">
         <div class="posts-container">
             <div class="posts-header">
-                <p class="posts-info">안녕하세요,<br>아무 말 대잔치 <strong>게시판</strong> 입니다.</p>
-                <button class="btn-write" data-navigate="/posts/write">
-                    게시글 작성
-                </button>
+                <p class="posts-info">안녕하세요.<br>아무 말 대잔치 <strong>게시판</strong>입니다.</p>
+                <button class="btn-write" data-navigate="/posts/write">게시글 작성</button>
             </div>
 
-            <!-- 게시글 리스트 -->
-            <div id="postsList" class="posts-list">
-                <!-- 게시글이 동적으로 추가됩니다 -->
-                <div class="loading">게시글을 불러오는 중...</div>
+            <section class="feed-toolbar">
+                <div class="sort-tabs" aria-label="피드 정렬">
+                    <button type="button" class="sort-tab active" data-sort="latest">최신순</button>
+                    <button type="button" class="sort-tab" data-sort="hot">인기순</button>
+                    <button type="button" class="sort-tab" data-sort="discussed">댓글순</button>
+                </div>
+                <div class="tag-filter">
+                    <input
+                        type="text"
+                        id="tagFilterInput"
+                        class="tag-filter-input"
+                        placeholder="태그로 필터링 (예: react)"
+                    >
+                    <button type="button" id="btnApplyTag" class="btn-filter">적용</button>
+                    <button type="button" id="btnClearTag" class="btn-filter secondary">초기화</button>
+                </div>
+            </section>
+
+            <div class="posts-layout">
+                <section class="posts-section">
+                    <div id="postsList" class="posts-list">
+                        <div class="loading">게시글을 불러오는 중...</div>
+                    </div>
+                </section>
+
+                <aside class="trending-panel">
+                    <h2>트렌딩</h2>
+                    <p class="trending-desc">최근 7일 기준으로 많이 반응한 게시글과 태그입니다.</p>
+
+                    <h3>태그</h3>
+                    <div id="trendingTagsList" class="trending-tags-list">
+                        <span class="loading">태그를 불러오는 중...</span>
+                    </div>
+
+                    <h3>게시글</h3>
+                    <div id="trendingPostsList" class="trending-posts-list">
+                        <div class="loading">트렌딩을 불러오는 중...</div>
+                    </div>
+                </aside>
             </div>
         </div>
     </main>
 
-    <!-- ✅ 환경변수 로드 (가장 먼저!) -->
     <script src="/config.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/utils.js"></script>

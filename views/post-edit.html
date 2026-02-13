@@ -26,15 +26,14 @@
                     </svg>
                 </button>
                 <div class="dropdown-menu" id="dropdownMenu">
-                    <button onclick="navigateTo('/profile/edit')">회원정보수정</button>
-                    <button onclick="navigateTo('/password/change')">비밀번호수정</button>
-                    <button onclick="handleLogout()">로그아웃</button>
+                    <button data-navigate="/profile/edit">회원정보수정</button>
+                    <button data-navigate="/password/change">비밀번호수정</button>
+                    <button data-logout="true">로그아웃</button>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- 메인 콘텐츠 -->
     <main class="write-main">
         <div class="write-container">
             <div class="write-header">
@@ -42,31 +41,57 @@
             </div>
 
             <form id="editForm" class="write-form">
-                <!-- 제목 -->
                 <div class="form-group">
                     <label for="title">제목*</label>
-                    <input type="text" id="title" name="title" class="form-input" placeholder="제목을 입력해주세요 (최대 26글자)"
-                        maxlength="26" required>
+                    <input
+                        type="text"
+                        id="title"
+                        name="title"
+                        class="form-input"
+                        placeholder="제목을 입력해 주세요 (최대 26자)"
+                        maxlength="26"
+                        required
+                    >
                     <span class="form-error" id="titleError"></span>
                 </div>
 
-                <!-- 내용 -->
                 <div class="form-group">
                     <label for="content">내용*</label>
-                    <textarea id="content" name="content" class="form-textarea" placeholder="내용을 입력해주세요" rows="10"
-                        required></textarea>
+                    <textarea
+                        id="content"
+                        name="content"
+                        class="form-textarea"
+                        placeholder="내용을 입력해 주세요"
+                        rows="10"
+                        required
+                    ></textarea>
                     <span class="form-error" id="contentError"></span>
                 </div>
 
-                <!-- 이미지 업로드 -->
+                <div class="form-group">
+                    <label for="tags">태그</label>
+                    <input
+                        type="text"
+                        id="tags"
+                        name="tags"
+                        class="form-input"
+                        placeholder="#frontend, react, 일상"
+                    >
+                    <p class="form-helper">쉼표(,)로 구분해 입력하세요. 최대 10개까지 저장됩니다.</p>
+                </div>
+
                 <div class="form-group">
                     <label for="image">이미지</label>
                     <div class="image-upload">
                         <input type="file" id="image" accept="image/*" style="display: none;">
                         <label for="image" class="image-upload-label">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
-                                    stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                <path
+                                    d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                />
                             </svg>
                             <span id="imageLabel">파일 선택</span>
                             <span id="currentImageName" style="margin-left: 10px; color: #666;"></span>
@@ -83,10 +108,9 @@
         </div>
     </main>
 
-    <!-- 확인 모달 -->
     <div id="confirmModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-            <p>게시글이 수정되었습니다</p>
+            <p>게시글이 수정되었습니다.</p>
             <div class="modal-buttons">
                 <button class="btn-modal" id="btnConfirmModal">확인</button>
             </div>

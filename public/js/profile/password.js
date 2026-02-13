@@ -1,222 +1,188 @@
 /**
- * 비밀번호 변경 페이지 로직
- * 설계도: 비밀번호, 비밀번호 확인 (현재 비밀번호 없음)
+ * Password change page script
  */
+document.addEventListener('DOMContentLoaded', async () => {
+    const isReady = await ensureAuthenticated();
+    if (!isReady) return;
 
-document.addEventListener('DOMContentLoaded', function () {
-    console.log('✅ 비밀번호 변경 페이지 로드');
-
-    // 헤더 프로필 이미지 로드
-    loadHeaderProfile();
+    await loadHeaderProfile();
+    bindDropdownMenu();
 
     const form = document.getElementById('passwordChangeForm');
+    const currentPasswordInput = document.getElementById('currentPassword');
     const newPasswordInput = document.getElementById('newPassword');
     const confirmPasswordInput = document.getElementById('confirmPassword');
     const submitButton = document.getElementById('btnSubmit');
     const passwordHelper = document.getElementById('passwordHelper');
     const confirmHelper = document.getElementById('confirmHelper');
 
-    // ✅ 초기화: 페이지 로드 시 잔상 제거 (User Issue Fix)
     if (passwordHelper) passwordHelper.textContent = '';
     if (confirmHelper) confirmHelper.textContent = '';
 
-    // 드롭다운 메뉴
-    const btnMenu = document.getElementById('btnMenu');
-    const dropdownMenu = document.getElementById('dropdownMenu');
-    const btnLogout = document.getElementById('btnLogout');
+    function updateValidationState() {
+        const currentPassword = currentPasswordInput.value;
+        const newPassword = newPasswordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
 
-    if (btnMenu && dropdownMenu) {
-        btnMenu.addEventListener('click', function (e) {
-            e.stopPropagation();
-            dropdownMenu.classList.toggle('show');
-        });
+        const passwordResult = validatePasswordComplex(newPassword);
+        const isConfirmMatched = confirmPassword.length > 0 && newPassword === confirmPassword;
+        const isCurrentProvided = currentPassword.length > 0;
 
-        document.addEventListener('click', function () {
-            dropdownMenu.classList.remove('show');
-        });
-    }
-
-    if (btnLogout) {
-        btnLogout.addEventListener('click', async function () {
-            try {
-                await logout();
-                window.location.href = '/login';
-            } catch (error) {
-                console.error('로그아웃 실패:', error);
-            }
-        });
-    }
-
-    // 실시간 검증 및 버튼 색상 변경
-    function checkAllFields() {
-        const newPw = newPasswordInput.value;
-        const confirm = confirmPasswordInput.value;
-
-        // 비밀번호 유효성 검사 (8자 이상, 대문자, 소문자, 숫자, 특수문자)
-        const hasMinLength = newPw.length >= 8;
-        const hasUpperCase = /[A-Z]/.test(newPw);
-        const hasLowerCase = /[a-z]/.test(newPw);
-        const hasNumber = /\d/.test(newPw);
-        const hasSpecialChar = /[@$!%*#?&]/.test(newPw);
-
-        const isPasswordValid = hasMinLength && hasUpperCase && hasLowerCase && hasNumber && hasSpecialChar;
-        const isConfirmValid = confirm.length > 0 && newPw === confirm;
-
-        // Helper text 업데이트
         if (passwordHelper) {
-            if (!newPw) {
-                passwordHelper.textContent = '*비밀번호를 입력해주세요';
+            if (!newPassword) {
+                passwordHelper.textContent = '*새 비밀번호를 입력해 주세요.';
                 passwordHelper.style.color = '#999';
-            } else if (!hasMinLength || !isPasswordValid) {
-                // Spec: "비밀번호는 8자 이상, 20자 이하이며, 대문자, 소문자, 숫자, 특수문자를 각각 최소 1개 포함해야 합니다."
-                passwordHelper.textContent = '*비밀번호는 8자 이상, 20자 이하이며, 대문자, 소문자, 숫자, 특수문자를 각각 최소 1개 포함해야 합니다.';
+            } else if (!passwordResult.valid) {
+                passwordHelper.textContent = '*8~20자, 대문자/소문자/숫자/특수문자를 각각 1개 이상 포함해 주세요.';
                 passwordHelper.style.color = '#dc3545';
             } else {
-                passwordHelper.textContent = '✓ 유효한 비밀번호입니다';
+                passwordHelper.textContent = '사용 가능한 비밀번호입니다.';
                 passwordHelper.style.color = '#28a745';
             }
         }
 
         if (confirmHelper) {
-            if (!confirm) {
-                // Spec: "비밀번호 확인 입력 안했을 시 : *비밀번호를 한번 더 입력해주세요"
-                confirmHelper.textContent = '*비밀번호를 한번 더 입력해주세요';
+            if (!confirmPassword) {
+                confirmHelper.textContent = '*새 비밀번호를 한 번 더 입력해 주세요.';
                 confirmHelper.style.color = '#999';
-            } else if (newPw !== confirm) {
-                // Spec: "비밀번호 확인이 비밀번호 다를시 : *비밀번호와 다릅니다."
-                confirmHelper.textContent = '*비밀번호와 다릅니다.';
+            } else if (!isConfirmMatched) {
+                confirmHelper.textContent = '*비밀번호가 일치하지 않습니다.';
                 confirmHelper.style.color = '#dc3545';
             } else {
-                confirmHelper.textContent = '✓ 비밀번호가 일치합니다';
+                confirmHelper.textContent = '비밀번호가 일치합니다.';
                 confirmHelper.style.color = '#28a745';
             }
         }
 
-        if (isPasswordValid && isConfirmValid) {
-            submitButton.style.background = '#7F6AEE';
-        } else {
-            submitButton.style.background = '#ACA0EB';
-        }
+        const canSubmit = isCurrentProvided && passwordResult.valid && isConfirmMatched;
+        submitButton.style.background = canSubmit ? '#7F6AEE' : '#ACA0EB';
+        return canSubmit;
     }
 
-    newPasswordInput.addEventListener('input', checkAllFields);
-    confirmPasswordInput.addEventListener('input', checkAllFields);
+    currentPasswordInput.addEventListener('input', updateValidationState);
+    newPasswordInput.addEventListener('input', updateValidationState);
+    confirmPasswordInput.addEventListener('input', updateValidationState);
 
-    // 폼 제출
-    form.addEventListener('submit', async function (e) {
-        e.preventDefault();
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
 
-        console.log('🔐 비밀번호 변경 폼 제출');
+        clearFieldError('currentPasswordError');
+        clearFieldError('newPasswordError');
+        clearFieldError('confirmPasswordError');
 
-        // 에러 초기화
-        document.getElementById('newPasswordError').textContent = '';
-        document.getElementById('confirmPasswordError').textContent = '';
-
+        const currentPassword = currentPasswordInput.value;
         const newPassword = newPasswordInput.value;
         const confirmPassword = confirmPasswordInput.value;
 
-        // 검증
-        let isValid = true;
+        let hasError = false;
 
+        if (!currentPassword) {
+            showFieldError('currentPasswordError', '현재 비밀번호를 입력해 주세요.');
+            hasError = true;
+        }
+
+        const passwordResult = validatePasswordComplex(newPassword);
         if (!newPassword) {
-            document.getElementById('newPasswordError').textContent = '비밀번호를 입력해주세요';
-            isValid = false;
-        } else if (newPassword.length < 8) {
-            document.getElementById('newPasswordError').textContent = '비밀번호는 8자 이상이어야 합니다';
-            isValid = false;
+            showFieldError('newPasswordError', '새 비밀번호를 입력해 주세요.');
+            hasError = true;
+        } else if (!passwordResult.valid) {
+            showFieldError('newPasswordError', '8~20자, 대문자/소문자/숫자/특수문자를 각각 1개 이상 포함해 주세요.');
+            hasError = true;
         }
 
-        if (newPassword !== confirmPassword) {
-            document.getElementById('confirmPasswordError').textContent = '비밀번호가 일치하지 않습니다';
-            isValid = false;
+        if (!confirmPassword) {
+            showFieldError('confirmPasswordError', '새 비밀번호 확인을 입력해 주세요.');
+            hasError = true;
+        } else if (newPassword !== confirmPassword) {
+            showFieldError('confirmPasswordError', '비밀번호가 일치하지 않습니다.');
+            hasError = true;
         }
 
-        if (!isValid) return;
+        if (hasError) return;
+
+        submitButton.disabled = true;
 
         try {
-            console.log('📤 비밀번호 변경 API 호출');
+            await changePassword(currentPassword, newPassword);
+            showToast('비밀번호가 변경되었습니다. 다시 로그인해 주세요.');
 
-            // 설계도에서는 현재 비밀번호 없음 - 빈 문자열로 전송
-            // 백엔드에서 현재 비밀번호 검증을 건너뛰도록 수정 필요
-            const response = await changePassword('', newPassword);
-
-            console.log('✅ 비밀번호 변경 성공:', response);
-
-            // 토스트 메시지 표시
-            showToast('수정 완료');
-
-            // 잠시 후 로그인 페이지로 이동
-            setTimeout(() => {
-                logout().then(() => {
-                    window.location.href = '/login';
-                }).catch(() => {
-                    window.location.href = '/login';
-                });
-            }, 1500);
-
+            setTimeout(async () => {
+                await logout();
+                navigateTo('/login');
+            }, 1000);
         } catch (error) {
-            console.error('❌ 비밀번호 변경 실패:', error);
-            document.getElementById('newPasswordError').textContent = error.message || '비밀번호 변경에 실패했습니다';
+            const resolved = resolveApiError(error, '비밀번호 변경에 실패했습니다.');
+            if (resolved.category === 'validation') {
+                showFieldError('currentPasswordError', resolved.message);
+            } else {
+                handleApiError(error, {
+                    fallbackMessage: '비밀번호 변경에 실패했습니다.'
+                });
+            }
+        } finally {
+            submitButton.disabled = false;
         }
     });
 });
 
-/**
- * 토스트 메시지 표시
- */
-function showToast(message) {
-    // 기존 토스트 제거
-    const existingToast = document.querySelector('.toast');
-    if (existingToast) {
-        existingToast.remove();
-    }
+function bindDropdownMenu() {
+    const btnMenu = document.getElementById('btnMenu');
+    const dropdownMenu = document.getElementById('dropdownMenu');
+    if (!btnMenu || !dropdownMenu) return;
 
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 100px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #333;
-        color: white;
-        padding: 12px 24px;
-        border-radius: 8px;
-        font-size: 14px;
-        z-index: 1000;
-        animation: fadeInUp 0.3s ease;
-    `;
+    btnMenu.addEventListener('click', (event) => {
+        event.stopPropagation();
+        dropdownMenu.classList.toggle('show');
+    });
 
-    document.body.appendChild(toast);
-
-    // 3초 후 자동 제거
-    setTimeout(() => {
-        toast.style.animation = 'fadeOutDown 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    document.addEventListener('click', () => {
+        dropdownMenu.classList.remove('show');
+    });
 }
 
-/**
- * 헤더 프로필 이미지 로드
- */
+function validatePasswordComplex(password) {
+    const value = String(password || '');
+    const isLengthValid = value.length >= 8 && value.length <= 20;
+    const hasUpperCase = /[A-Z]/.test(value);
+    const hasLowerCase = /[a-z]/.test(value);
+    const hasNumber = /[0-9]/.test(value);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(value);
+
+    return {
+        valid: isLengthValid && hasUpperCase && hasLowerCase && hasNumber && hasSpecial
+    };
+}
+
+function showFieldError(errorElementId, message) {
+    const target = document.getElementById(errorElementId);
+    if (!target) return;
+    target.textContent = message;
+}
+
+function clearFieldError(errorElementId) {
+    const target = document.getElementById(errorElementId);
+    if (!target) return;
+    target.textContent = '';
+}
+
 async function loadHeaderProfile() {
     try {
         const response = await getMe();
-        const user = response.data || response;
+        const user = response && response.data ? response.data : response;
 
         const headerImage = document.getElementById('headerProfileImage');
-        if (headerImage && user.profile_image_url) {
-            let imageUrl = user.profile_image_url;
-            if (imageUrl.startsWith('/')) {
-                imageUrl = `http://localhost:8000${imageUrl}`;
-            }
-            headerImage.src = imageUrl;
-            headerImage.onerror = function () {
-                this.src = '/images/default-profile.png';
-            };
+        if (!headerImage) return;
+
+        if (user.profile_image_url) {
+            headerImage.src = /^https?:\/\//i.test(user.profile_image_url)
+                ? user.profile_image_url
+                : toApiUrl(user.profile_image_url);
         }
+
+        headerImage.onerror = function onHeaderImageError() {
+            this.src = '/images/default-profile.png';
+        };
     } catch (error) {
-        console.log('헤더 프로필 로드 실패:', error);
+        console.debug('Failed to load header profile:', error.message);
     }
 }
