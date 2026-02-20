@@ -132,9 +132,9 @@ async function loadPostDetail() {
             postImage.style.display = 'block';
         }
 
-        document.getElementById('viewCount').textContent = String(post.view_count || post.views || 0);
-        document.getElementById('likeCount').textContent = String(post.likes_count || 0);
-        document.getElementById('commentCount').textContent = String(post.comments_count || 0);
+        document.getElementById('viewCount').textContent = formatStatCount(post.view_count || post.views || 0);
+        document.getElementById('likeCount').textContent = formatStatCount(post.likes_count || 0);
+        document.getElementById('commentCount').textContent = formatStatCount(post.comments_count || 0);
 
         const likeButton = document.getElementById('likeButton');
         const likeText = document.getElementById('likeText');

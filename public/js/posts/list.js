@@ -301,10 +301,12 @@ async function loadTrending() {
 
     try {
         const response = await getTrendingPosts(TRENDING_DAYS, TRENDING_LIMIT);
-        const posts = extractPostArray(response);
+        const trendingData = response && response.data ? response.data : response;
+        const posts = Array.isArray(trendingData.posts) ? trendingData.posts : extractPostArray(response);
+        const topTags = Array.isArray(trendingData.top_tags) ? trendingData.top_tags : null;
 
         renderTrendingPosts(posts, trendingPostsContainer);
-        renderTrendingTags(posts, trendingTagsContainer);
+        renderTrendingTags(topTags, posts, trendingTagsContainer);
     } catch (error) {
         trendingPostsContainer.innerHTML = '<div class="empty-message">트렌딩 정보를 불러오지 못했습니다.</div>';
         handleApiError(error, {
@@ -331,8 +333,14 @@ function renderTrendingPosts(posts, container) {
     });
 }
 
-function renderTrendingTags(posts, container) {
-    const rankedTags = collectTrendingTags(posts);
+function renderTrendingTags(topTags, posts, container) {
+    // BE API의 top_tags 응답을 우선 사용하고, 없을 경우 게시글에서 직접 집계
+    let rankedTags;
+    if (Array.isArray(topTags) && topTags.length > 0) {
+        rankedTags = topTags.map((item) => ({ tag: item.name, count: item.count }));
+    } else {
+        rankedTags = collectTrendingTags(posts);
+    }
 
     if (!rankedTags.length) {
         container.innerHTML = '<span class="empty-inline">태그 데이터가 없습니다.</span>';
@@ -433,12 +441,6 @@ function safeFormatDate(value) {
     return new Date(value).toISOString().split('T')[0];
 }
 
-function formatStatCount(value) {
-    const count = Number(value || 0);
-    if (count >= 1000000) return `${(count / 1000000).toFixed(1).replace('.0', '')}M`;
-    if (count >= 1000) return `${(count / 1000).toFixed(1).replace('.0', '')}K`;
-    return String(count);
-}
 
 async function loadHeaderProfile() {
     try {
@@ -477,8 +479,7 @@ const postsListTestUtils = {
     normalizePostTags,
     buildPostCardHtml,
     buildTrendingPostItemHtml,
-    buildTrendingTagChipHtml,
-    formatStatCount
+    buildTrendingTagChipHtml
 };
 
 if (typeof window !== 'undefined') {

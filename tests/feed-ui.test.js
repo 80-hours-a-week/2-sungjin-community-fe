@@ -1,6 +1,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+const utils = require('../public/js/utils.js');
+
+// Mock global utils for list.js
+Object.assign(global, utils);
+
+// Mock other global functions used in list.js
+global.safeEscape = utils.escapeHtml;
+global.safeTruncate = utils.truncateText;
+global.safeFormatDate = utils.formatDate;
+
 const feedUtils = require('../public/js/posts/list.js');
 
 test('collectTrendingTags aggregates and sorts tags by frequency', () => {

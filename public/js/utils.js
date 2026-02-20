@@ -6,30 +6,32 @@ function navigateTo(path) {
     window.location.href = path;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    document.body.addEventListener('click', (event) => {
-        const navigateTarget = event.target.closest('[data-navigate]');
-        const logoutTarget = event.target.closest('[data-logout]');
-        const backTarget = event.target.closest('[data-history-back]');
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        document.body.addEventListener('click', (event) => {
+            const navigateTarget = event.target.closest('[data-navigate]');
+            const logoutTarget = event.target.closest('[data-logout]');
+            const backTarget = event.target.closest('[data-history-back]');
 
-        if (navigateTarget) {
-            event.preventDefault();
-            navigateTo(navigateTarget.dataset.navigate);
-        }
-
-        if (logoutTarget) {
-            event.preventDefault();
-            if (typeof handleLogout === 'function') {
-                handleLogout();
+            if (navigateTarget) {
+                event.preventDefault();
+                navigateTo(navigateTarget.dataset.navigate);
             }
-        }
 
-        if (backTarget) {
-            event.preventDefault();
-            window.history.back();
-        }
+            if (logoutTarget) {
+                event.preventDefault();
+                if (typeof handleLogout === 'function') {
+                    handleLogout();
+                }
+            }
+
+            if (backTarget) {
+                event.preventDefault();
+                window.history.back();
+            }
+        });
     });
-});
+}
 
 function formatDate(dateString) {
     const date = new Date(dateString);
@@ -59,12 +61,16 @@ function validateEmail(email) {
 }
 
 function validatePassword(password) {
-    return String(password || '').length >= 8;
+    const pw = String(password || '');
+    if (pw.length < 8 || pw.length > 20) return false;
+    // BE 기준: 대문자, 소문자, 숫자, 특수문자(@$!%*#?&) 각 1개 이상
+    return /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*#?&])/.test(pw);
 }
 
 function validateNickname(nickname) {
-    const safeNickname = String(nickname || '');
-    return safeNickname.length >= 2 && safeNickname.length <= 20;
+    const safeNickname = String(nickname || '').trim();
+    // BE 기준: 1자 이상 10자 이하, 공백 불가
+    return safeNickname.length >= 1 && safeNickname.length <= 10 && !safeNickname.includes(' ');
 }
 
 function createElement(tag, className, textContent = '') {
@@ -168,9 +174,17 @@ function getQueryParam(param) {
 }
 
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = String(text || '');
-    return div.innerHTML;
+    if (typeof document !== 'undefined') {
+        const div = document.createElement('div');
+        div.textContent = String(text || '');
+        return div.innerHTML;
+    }
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function showConfirmDialog(message) {
@@ -179,6 +193,13 @@ function showConfirmDialog(message) {
 
 function formatNumber(num) {
     return Number(num || 0).toLocaleString('ko-KR');
+}
+
+function formatStatCount(value) {
+    const count = Number(value || 0);
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1).replace('.0', '')}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1).replace('.0', '')}K`;
+    return String(count);
 }
 
 function showToast(message, duration = 3000) {
@@ -272,6 +293,20 @@ async function handleLogout() {
     } catch (error) {
         console.error('Logout failed:', error);
         showToast('로그아웃 중 문제가 발생했습니다.');
-        navigateTo('/login');
     }
+}
+
+// Export for Node.js/Test environment
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        formatDate,
+        truncateText,
+        validateEmail,
+        validatePassword,
+        validateNickname,
+        formatNumber,
+        formatStatCount,
+        escapeHtml,
+        resolveApiError
+    };
 }

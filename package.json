@@ -7,6 +7,8 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "start:3001": "PORT=3001 node server.js",
+    "start:backend": "./start_backend.sh",
+    "clean-install": "rm -rf node_modules package-lock.json && npm install",
     "test": "node --test \"tests/*.test.js\""
   },
   "keywords": [
