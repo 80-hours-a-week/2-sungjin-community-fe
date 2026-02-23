@@ -223,7 +223,7 @@
             const isEmailValid = validateEmail(email) && checkedEmail === email;
             const isPasswordValid = validatePasswordComplex(password);
             const isPasswordConfirmValid = password === passwordConfirm && passwordConfirm.length > 0;
-            const isNicknameValid = nickname.length >= 2 && nickname.length <= 20 && !nickname.includes(' ');
+            const isNicknameValid = nickname.length >= 1 && nickname.length <= 10 && !nickname.includes(' ');
 
             submitButton.style.background = (
                 isProfileValid &&
@@ -266,8 +266,8 @@
             errors.nickname = '닉네임을 입력해 주세요.';
         } else if (payload.nickname.includes(' ')) {
             errors.nickname = '닉네임에는 공백을 사용할 수 없습니다.';
-        } else if (payload.nickname.length < 2 || payload.nickname.length > 20) {
-            errors.nickname = '닉네임은 2~20자 사이여야 합니다.';
+        } else if (payload.nickname.length < 1 || payload.nickname.length > 10) {
+            errors.nickname = '닉네임은 1~10자 사이여야 합니다.';
         }
 
         return errors;

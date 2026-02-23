@@ -145,6 +145,15 @@ npm start
 ### 5. 확인
 브라우저에서 `http://localhost:3001` 접속
 
+### 6. 백엔드 연동 스모크 테스트
+
+```bash
+npm run test:integration
+```
+
+- `verify_api.js`는 테스트용 사용자를 자동 생성하고 JWT 기반으로 회원/게시글/댓글/좋아요 흐름을 검증합니다.
+- 기본 백엔드 주소는 `http://127.0.0.1:8000`이며, 필요 시 `API_URL` 환경 변수를 사용합니다.
+
 ---
 
 ## 💼 실무 적용 사항 (Best Practices)

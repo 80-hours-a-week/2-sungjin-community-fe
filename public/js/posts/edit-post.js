@@ -206,7 +206,7 @@
             .split(',')
             .map((tag) => tag.trim().replace(/^#/, ''))
             .filter(Boolean);
-        return [...new Set(tags)].slice(0, 10);
+        return [...new Set(tags)].slice(0, 5);
     }
 
     function normalizePostTags(tags) {
