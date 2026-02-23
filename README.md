@@ -130,6 +130,7 @@ npm install
 ```ini
 PORT=3001
 API_URL=http://localhost:8000
+FILE_UPLOAD_API_URL=
 ```
 
 ### 4. 실행
@@ -153,6 +154,18 @@ npm run test:integration
 
 - `verify_api.js`는 테스트용 사용자를 자동 생성하고 JWT 기반으로 회원/게시글/댓글/좋아요 흐름을 검증합니다.
 - 기본 백엔드 주소는 `http://127.0.0.1:8000`이며, 필요 시 `API_URL` 환경 변수를 사용합니다.
+
+```bash
+FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run test:upload
+```
+
+- `verify_upload_gateway.js`는 Lambda + API Gateway 기반 S3 업로드 경로를 검증합니다.
+
+### 7. AWS 빅뱅 배포 자료
+
+- Terraform: `infra/aws-bigbang`
+- 배포 가이드: `infra/aws-bigbang/README.md`
+- QA 체크리스트: `docs/aws-bigbang-qa.md`
 
 ---
 

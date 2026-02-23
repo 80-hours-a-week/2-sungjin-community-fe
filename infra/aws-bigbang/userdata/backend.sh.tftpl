@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euxo pipefail
+
+dnf update -y
+dnf install -y git python3 python3-pip amazon-efs-utils
+
+mkdir -p /mnt/efs
+mount -t efs -o tls ${efs_id}:/ /mnt/efs || true
+
+git clone --branch ${backend_repo_branch} ${backend_repo_url} /opt/community-be
+cd /opt/community-be
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+cat > /opt/community-be/.env <<ENV
+DATABASE_URL=${database_url}
+AUTO_CREATE_TABLES=true
+CORS_ALLOW_ORIGINS=${cors_allow_origins}
+UPLOAD_BUCKET=${upload_bucket}
+ENV
+
+if [ -f alembic.ini ]; then
+  .venv/bin/alembic upgrade head || true
+fi
+
+cat > /etc/systemd/system/community-backend.service <<SERVICE
+[Unit]
+Description=Community Backend API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/community-be
+ExecStart=/opt/community-be/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+systemctl daemon-reload
+systemctl enable community-backend
+systemctl restart community-backend

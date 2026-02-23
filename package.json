@@ -10,7 +10,8 @@
     "start:backend": "./start_backend.sh",
     "clean-install": "rm -rf node_modules package-lock.json && npm install",
     "test": "node --test \"tests/*.test.js\"",
-    "test:integration": "node verify_api.js"
+    "test:integration": "node verify_api.js",
+    "test:upload": "node verify_upload_gateway.js"
   },
   "keywords": [
     "express",
