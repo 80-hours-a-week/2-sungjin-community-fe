@@ -173,7 +173,7 @@ FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run 
 - 실행 가이드: `docs/docker-miniquest-runbook.md`
 - FE/BE 동시 실행: `docker-compose.yml`
 - EC2 배포용 compose: `docker-compose.deploy.yml`
-- 이미지 푸시 스크립트: `scripts/docker-push.sh`
+- 이미지 푸시 스크립트: `scripts/docker-push.sh` (기본 multi-arch: `amd64` + `arm64`)
 - EC2 compose 배포 스크립트: `scripts/ec2-compose-deploy.sh`
 
 ---

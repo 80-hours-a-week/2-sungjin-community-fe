@@ -65,6 +65,16 @@ docker login
 # 예: ./scripts/docker-push.sh sungjin9288 v1.0.0
 ```
 
+기본 동작은 multi-arch 빌드/푸시입니다:
+- `linux/amd64` (EC2 x86)
+- `linux/arm64` (Apple Silicon 등)
+
+특정 아키텍처만 푸시하려면 3번째 인자로 플랫폼을 지정합니다.
+
+```bash
+./scripts/docker-push.sh <dockerhub-username> <tag> linux/arm64
+```
+
 ## 5. EC2에 compose로 배포
 사전 준비:
 - EC2에 Docker + Compose 설치
