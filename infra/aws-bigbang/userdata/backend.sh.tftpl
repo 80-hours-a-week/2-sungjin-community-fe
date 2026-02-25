@@ -25,7 +25,20 @@ UPLOAD_BUCKET=${upload_bucket}
 ENV
 
 if [ -f alembic.ini ]; then
-  .venv/bin/alembic upgrade head || true
+  # Ensure migrations target the same DATABASE_URL used by the runtime service.
+  set -a
+  source /opt/community-be/.env
+  set +a
+  # Alembic's config parser treats '%' as interpolation token.
+  # Decode percent-encoded credentials for migration execution.
+  ALEMBIC_DATABASE_URL=$(/opt/community-be/.venv/bin/python - <<'PY'
+import os
+import urllib.parse
+
+print(urllib.parse.unquote(os.environ["DATABASE_URL"]))
+PY
+  )
+  DATABASE_URL="$ALEMBIC_DATABASE_URL" .venv/bin/alembic upgrade head
 fi
 
 cat > /etc/systemd/system/community-backend.service <<SERVICE
