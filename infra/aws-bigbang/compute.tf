@@ -93,7 +93,7 @@ resource "aws_instance" "backend" {
     efs_id              = aws_efs_file_system.shared.id
     backend_repo_url    = var.backend_repo_url
     backend_repo_branch = var.backend_repo_branch
-    database_url        = "postgresql+psycopg2://${var.db_username}:${var.db_password}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${var.db_name}"
+    database_url        = "postgresql+psycopg2://${var.db_username}:${urlencode(var.db_password)}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${var.db_name}"
     cors_allow_origins  = "http://${aws_lb.frontend.dns_name},https://${aws_lb.frontend.dns_name},http://localhost:3001,http://127.0.0.1:3001"
     upload_bucket       = aws_s3_bucket.uploads.bucket
   })
@@ -107,6 +107,10 @@ resource "aws_instance" "backend" {
     aws_db_instance.postgres,
     aws_efs_mount_target.private
   ]
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
 }
 
 resource "aws_instance" "frontend" {
@@ -118,12 +122,12 @@ resource "aws_instance" "frontend" {
   iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
 
   user_data = templatefile("${path.module}/userdata/frontend.sh.tftpl", {
-    aws_region             = var.aws_region
-    efs_id                 = aws_efs_file_system.shared.id
-    frontend_repo_url      = var.frontend_repo_url
-    frontend_repo_branch   = var.frontend_repo_branch
-    backend_api_url        = "http://${aws_lb.backend.dns_name}"
-    file_upload_api_url    = aws_apigatewayv2_stage.upload.invoke_url
+    aws_region           = var.aws_region
+    efs_id               = aws_efs_file_system.shared.id
+    frontend_repo_url    = var.frontend_repo_url
+    frontend_repo_branch = var.frontend_repo_branch
+    backend_api_url      = "http://${aws_lb.backend.dns_name}"
+    file_upload_api_url  = aws_apigatewayv2_stage.upload.invoke_url
   })
 
   tags = {
@@ -135,6 +139,10 @@ resource "aws_instance" "frontend" {
     aws_instance.backend,
     aws_apigatewayv2_stage.upload
   ]
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
 }
 
 resource "aws_eip" "frontend" {

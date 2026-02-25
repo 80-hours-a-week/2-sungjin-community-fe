@@ -166,6 +166,7 @@ FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run 
 - Terraform: `infra/aws-bigbang`
 - 배포 가이드: `infra/aws-bigbang/README.md`
 - QA 체크리스트: `docs/aws-bigbang-qa.md`
+- 작업자 실행 문서: `docs/aws-bigbang-owner-runbook.md`
 
 ---
 

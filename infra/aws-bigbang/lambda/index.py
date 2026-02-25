@@ -8,7 +8,7 @@ import boto3
 
 S3 = boto3.client("s3")
 UPLOAD_BUCKET = os.environ["UPLOAD_BUCKET"]
-AWS_REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
+APP_REGION = os.environ.get("APP_REGION", "ap-northeast-2")
 URL_TTL = int(os.environ.get("URL_TTL", "600"))
 
 ALLOWED_UPLOAD_TYPES = {"profile", "post"}
@@ -69,7 +69,7 @@ def handler(event, _context):
         HttpMethod="PUT",
     )
 
-    image_url = f"https://{UPLOAD_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{key}"
+    image_url = f"https://{UPLOAD_BUCKET}.s3.{APP_REGION}.amazonaws.com/{key}"
 
     return _response(
         200,

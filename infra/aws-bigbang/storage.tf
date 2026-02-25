@@ -138,6 +138,12 @@ data "aws_iam_policy_document" "cloudtrail_bucket_policy" {
 
     actions   = ["s3:GetBucketAcl"]
     resources = [aws_s3_bucket.cloudtrail.arn]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:cloudtrail:${var.aws_region}:${data.aws_caller_identity.current.account_id}:trail/${local.name_prefix}-trail"]
+    }
   }
 
   statement {
@@ -160,10 +166,18 @@ data "aws_iam_policy_document" "cloudtrail_bucket_policy" {
       variable = "s3:x-amz-acl"
       values   = ["bucket-owner-full-control"]
     }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceArn"
+      values   = ["arn:aws:cloudtrail:${var.aws_region}:${data.aws_caller_identity.current.account_id}:trail/${local.name_prefix}-trail"]
+    }
   }
 }
 
 resource "aws_s3_bucket_policy" "cloudtrail" {
   bucket = aws_s3_bucket.cloudtrail.id
   policy = data.aws_iam_policy_document.cloudtrail_bucket_policy.json
+
+  depends_on = [aws_s3_bucket_public_access_block.cloudtrail]
 }

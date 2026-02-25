@@ -1,8 +1,10 @@
 #!/bin/bash
 set -euxo pipefail
 
-dnf update -y
-dnf install -y git python3 python3-pip amazon-efs-utils
+dnf install -y --allowerasing git python3.11 python3.11-pip amazon-efs-utils amazon-ssm-agent
+
+systemctl enable amazon-ssm-agent
+systemctl restart amazon-ssm-agent
 
 mkdir -p /mnt/efs
 mount -t efs -o tls ${efs_id}:/ /mnt/efs || true
@@ -10,7 +12,7 @@ mount -t efs -o tls ${efs_id}:/ /mnt/efs || true
 git clone --branch ${backend_repo_branch} ${backend_repo_url} /opt/community-be
 cd /opt/community-be
 
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
@@ -34,7 +36,8 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/community-be
-ExecStart=/opt/community-be/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+# Load .env explicitly so DATABASE_URL and related variables are applied to the app process.
+ExecStart=/bin/bash -lc 'set -a; source /opt/community-be/.env; set +a; exec /opt/community-be/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000'
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
@@ -46,3 +49,26 @@ SERVICE
 systemctl daemon-reload
 systemctl enable community-backend
 systemctl restart community-backend
+
+for i in $(seq 1 30); do
+  if /opt/community-be/.venv/bin/python - <<'PY'
+import sys
+import urllib.request
+
+try:
+    with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=1):
+        sys.exit(0)
+except Exception:
+    sys.exit(1)
+PY
+  then
+    echo "Backend health check passed on attempt $${i}"
+    exit 0
+  fi
+  sleep 2
+done
+
+echo "Backend failed to become healthy. Dumping logs..."
+systemctl status community-backend --no-pager || true
+journalctl -u community-backend -n 200 --no-pager || true
+exit 1

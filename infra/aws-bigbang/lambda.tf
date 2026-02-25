@@ -17,7 +17,7 @@ resource "aws_lambda_function" "upload" {
   environment {
     variables = {
       UPLOAD_BUCKET = aws_s3_bucket.uploads.bucket
-      AWS_REGION    = var.aws_region
+      APP_REGION    = var.aws_region
       URL_TTL       = tostring(var.upload_presigned_ttl_seconds)
     }
   }
