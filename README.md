@@ -168,6 +168,14 @@ FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run 
 - QA 체크리스트: `docs/aws-bigbang-qa.md`
 - 작업자 실행 문서: `docs/aws-bigbang-owner-runbook.md`
 
+### 8. Docker 미니퀘스트 자료
+
+- 실행 가이드: `docs/docker-miniquest-runbook.md`
+- FE/BE 동시 실행: `docker-compose.yml`
+- EC2 배포용 compose: `docker-compose.deploy.yml`
+- 이미지 푸시 스크립트: `scripts/docker-push.sh`
+- EC2 compose 배포 스크립트: `scripts/ec2-compose-deploy.sh`
+
 ---
 
 ## 💼 실무 적용 사항 (Best Practices)
