@@ -174,8 +174,14 @@ FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run 
 - 실행 가이드: `docs/docker-miniquest-runbook.md`
 - FE/BE 동시 실행: `docker-compose.yml`
 - EC2 배포용 compose: `docker-compose.deploy.yml`
+- Reverse Proxy compose: `docker-compose.reverse-proxy.yml`
+- Nginx reverse proxy 설정: `ops/nginx/reverse-proxy.conf`
 - 이미지 푸시 스크립트: `scripts/docker-push.sh` (기본 multi-arch: `amd64` + `arm64`)
 - EC2 compose 배포 스크립트: `scripts/ec2-compose-deploy.sh`
+- FE CI: `.github/workflows/ci-frontend.yml`
+- FE EC2 CD: `.github/workflows/deploy-ec2-compose.yml`
+- BE Lambda image 배포 스크립트: `../2-sungjin-community-be/scripts/deploy-lambda-image.sh`
+- BE CI/CD 워크플로우: `../2-sungjin-community-be/.github/workflows/*`
 
 ### 9. AWS 빅뱅 과제 완료 체크
 
