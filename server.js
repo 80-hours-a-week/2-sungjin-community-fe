@@ -6,6 +6,7 @@ const routes = require('./routes');
 const app = express();
 const PORT = process.env.PORT || 3001;
 const API_URL = process.env.API_URL || 'http://localhost:8000';
+const FILE_UPLOAD_API_URL = process.env.FILE_UPLOAD_API_URL || '';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // 정적 파일 제공
@@ -18,6 +19,7 @@ app.get('/config.js', (req, res) => {
     res.send(`
         window.ENV_CONFIG = {
             API_URL: '${API_URL}',
+            FILE_UPLOAD_API_URL: '${FILE_UPLOAD_API_URL}',
             NODE_ENV: '${NODE_ENV}',
             IS_DEV: ${NODE_ENV === 'development'}
         };
@@ -39,6 +41,7 @@ app.listen(PORT, () => {
     console.log('==================================================');
     console.log(`✅ 서버 실행 중: http://localhost:${PORT}`);
     console.log(`📡 백엔드 API: ${API_URL}`);
+    console.log(`🖼️ 파일 업로드 API: ${FILE_UPLOAD_API_URL || '(disabled)'}`);
     console.log(`🌍 환경: ${NODE_ENV}`);
     console.log('==================================================');
 });

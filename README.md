@@ -17,6 +17,7 @@
 - [기술 스택](#-기술-스택)
 - [프로젝트 구조](#-프로젝트-구조)
 - [설치 및 실행](#-설치-및-실행)
+- [AWS 빅뱅 과제 완료 체크](#-aws-빅뱅-과제-완료-체크)
 - [UI/UX 디자인](#-uiux-디자인)
 - [실무 적용 사항](#-실무-적용-사항)
 - [학습 포인트](#-학습-포인트)
@@ -130,6 +131,7 @@ npm install
 ```ini
 PORT=3001
 API_URL=http://localhost:8000
+FILE_UPLOAD_API_URL=
 ```
 
 ### 4. 실행
@@ -144,6 +146,80 @@ npm start
 
 ### 5. 확인
 브라우저에서 `http://localhost:3001` 접속
+
+### 6. 백엔드 연동 스모크 테스트
+
+```bash
+npm run test:integration
+```
+
+- `verify_api.js`는 테스트용 사용자를 자동 생성하고 JWT 기반으로 회원/게시글/댓글/좋아요 흐름을 검증합니다.
+- 기본 백엔드 주소는 `http://127.0.0.1:8000`이며, 필요 시 `API_URL` 환경 변수를 사용합니다.
+
+```bash
+FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run test:upload
+```
+
+- `verify_upload_gateway.js`는 Lambda + API Gateway 기반 S3 업로드 경로를 검증합니다.
+
+### 7. AWS 빅뱅 배포 자료
+
+- Terraform: `infra/aws-bigbang`
+- 배포 가이드: `infra/aws-bigbang/README.md`
+- QA 체크리스트: `docs/aws-bigbang-qa.md`
+- 작업자 실행 문서: `docs/aws-bigbang-owner-runbook.md`
+
+### 8. Docker 미니퀘스트 자료
+
+- 실행 가이드: `docs/docker-miniquest-runbook.md`
+- FE/BE 동시 실행: `docker-compose.yml`
+- EC2 배포용 compose: `docker-compose.deploy.yml`
+- Reverse Proxy compose: `docker-compose.reverse-proxy.yml`
+- Nginx reverse proxy 설정: `ops/nginx/reverse-proxy.conf`
+- 이미지 푸시 스크립트: `scripts/docker-push.sh` (기본 multi-arch: `amd64` + `arm64`)
+- EC2 compose 배포 스크립트: `scripts/ec2-compose-deploy.sh`
+- FE CI: `.github/workflows/ci-frontend.yml`
+- FE EC2 CD: `.github/workflows/deploy-ec2-compose.yml`
+- BE Lambda image 배포 스크립트: `../2-sungjin-community-be/scripts/deploy-lambda-image.sh`
+- BE CI/CD 워크플로우: `../2-sungjin-community-be/.github/workflows/*`
+
+### 9. AWS 빅뱅 과제 완료 체크
+
+기준일: `2026-02-25`
+
+#### 요구사항 충족 여부
+
+| 요구사항 | 상태 | 구현/증빙 |
+|---|---|---|
+| 1-1. 다중 EC2로 FE/BE 분리 | ✅ 완료 | `aws_instance.frontend`, `aws_instance.backend` |
+| 필수 서비스: VPC | ✅ 완료 | `aws_vpc.main` |
+| 필수 서비스: IAM | ✅ 완료 | `aws_iam_role.*`, `aws_iam_instance_profile.ec2_profile` |
+| 필수 서비스: Security Group | ✅ 완료 | `aws_security_group.*` |
+| 필수 서비스: Elastic IP | ✅ 완료 | `aws_eip.frontend`, `aws_eip.nat` |
+| 필수 서비스: EC2 | ✅ 완료 | `aws_instance.frontend`, `aws_instance.backend` |
+| 필수 서비스: EFS | ✅ 완료 | `aws_efs_file_system.shared`, `aws_efs_mount_target.private[*]` |
+| 필수 서비스: CloudTrail | ✅ 완료 | `aws_cloudtrail.main` |
+| 필수 서비스: CloudWatch | ✅ 완료 | `aws_cloudwatch_log_group.*`, `aws_cloudwatch_metric_alarm.*` |
+| 필수 서비스: RDS | ✅ 완료 | `aws_db_instance.postgres` |
+| 필수 서비스: S3 | ✅ 완료 | `aws_s3_bucket.uploads`, `aws_s3_bucket.cloudtrail` |
+| 필수 서비스: API Gateway | ✅ 완료 | `aws_apigatewayv2_api.upload` 등 |
+| 필수 서비스: Lambda | ✅ 완료 | `aws_lambda_function.upload` |
+| 1-2. 파일 업로드는 Lambda + API Gateway 사용 | ✅ 완료 | `FILE_UPLOAD_API_URL` 기반 `test:upload` 통과 |
+| 1-3. ELB 적용 | ✅ 완료 | `aws_lb.frontend`, `aws_lb.backend` + target group/listener |
+
+#### 동작 검증 결과
+
+- API Health: `GET /health` → `200 OK`
+- Frontend ALB: `/` 접속 시 `302 -> /login`
+- 통합 API 테스트: `npm run test:integration` 통과
+- 업로드 테스트: `npm run test:upload` 통과
+
+#### 인프라 상태 확인 명령
+
+```bash
+cd infra/aws-bigbang
+terraform state list | sort
+```
 
 ---
 

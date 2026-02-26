@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const nickname = nicknameInput.value.trim();
         if (!validateNickname(nickname)) {
-            nicknameError.textContent = '닉네임은 2~20자 사이여야 합니다.';
+            nicknameError.textContent = '닉네임은 1~10자 사이여야 합니다.';
             nicknameError.style.display = 'block';
             return;
         }

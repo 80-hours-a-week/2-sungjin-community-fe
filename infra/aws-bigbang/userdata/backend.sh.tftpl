@@ -1,0 +1,87 @@
+#!/bin/bash
+set -euxo pipefail
+
+dnf install -y --allowerasing git python3.11 python3.11-pip amazon-efs-utils amazon-ssm-agent
+
+systemctl enable amazon-ssm-agent
+systemctl restart amazon-ssm-agent
+
+mkdir -p /mnt/efs
+mount -t efs -o tls ${efs_id}:/ /mnt/efs || true
+
+git clone --branch ${backend_repo_branch} ${backend_repo_url} /opt/community-be
+cd /opt/community-be
+
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+cat > /opt/community-be/.env <<ENV
+DATABASE_URL=${database_url}
+AUTO_CREATE_TABLES=true
+CORS_ALLOW_ORIGINS=${cors_allow_origins}
+UPLOAD_BUCKET=${upload_bucket}
+ENV
+
+if [ -f alembic.ini ]; then
+  # Ensure migrations target the same DATABASE_URL used by the runtime service.
+  set -a
+  source /opt/community-be/.env
+  set +a
+  # Alembic's config parser treats '%' as interpolation token.
+  # Decode percent-encoded credentials for migration execution.
+  ALEMBIC_DATABASE_URL=$(/opt/community-be/.venv/bin/python - <<'PY'
+import os
+import urllib.parse
+
+print(urllib.parse.unquote(os.environ["DATABASE_URL"]))
+PY
+  )
+  DATABASE_URL="$ALEMBIC_DATABASE_URL" .venv/bin/alembic upgrade head
+fi
+
+cat > /etc/systemd/system/community-backend.service <<SERVICE
+[Unit]
+Description=Community Backend API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/community-be
+# Load .env explicitly so DATABASE_URL and related variables are applied to the app process.
+ExecStart=/bin/bash -lc 'set -a; source /opt/community-be/.env; set +a; exec /opt/community-be/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000'
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+
+systemctl daemon-reload
+systemctl enable community-backend
+systemctl restart community-backend
+
+for i in $(seq 1 30); do
+  if /opt/community-be/.venv/bin/python - <<'PY'
+import sys
+import urllib.request
+
+try:
+    with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=1):
+        sys.exit(0)
+except Exception:
+    sys.exit(1)
+PY
+  then
+    echo "Backend health check passed on attempt $${i}"
+    exit 0
+  fi
+  sleep 2
+done
+
+echo "Backend failed to become healthy. Dumping logs..."
+systemctl status community-backend --no-pager || true
+journalctl -u community-backend -n 200 --no-pager || true
+exit 1

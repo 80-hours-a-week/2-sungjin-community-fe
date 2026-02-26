@@ -22,7 +22,20 @@ Thumbs.db
 # Logs
 logs/
 *.log
+__pycache__/
+*.pyc
 
 # Build
 dist/
 build/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+*.tfvars
+*.tfvars*
+tfplan
+tfplan.*
+infra/aws-bigbang/lambda/*.zip

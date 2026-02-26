@@ -10,12 +10,14 @@
 
     const defaultConfig = {
         API_URL: 'http://localhost:8000',
+        FILE_UPLOAD_API_URL: '',
         IS_DEV: true,
         NODE_ENV: 'development'
     };
 
     const envConfig = globalScope.ENV_CONFIG || defaultConfig;
     const API_URL = (envConfig.API_URL || defaultConfig.API_URL).replace(/\/+$/, '');
+    const FILE_UPLOAD_API_URL = (envConfig.FILE_UPLOAD_API_URL || defaultConfig.FILE_UPLOAD_API_URL || '').replace(/\/+$/, '');
     const IS_DEV = Boolean(envConfig.IS_DEV);
 
     const STORAGE_KEYS = Object.freeze({
@@ -100,6 +102,13 @@
         if (!pathOrUrl) return pathOrUrl;
         if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
         return `${API_URL}${pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`}`;
+    }
+
+    function toUploadApiUrl(pathOrUrl) {
+        if (!pathOrUrl) return pathOrUrl;
+        if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+        if (!FILE_UPLOAD_API_URL) return pathOrUrl;
+        return `${FILE_UPLOAD_API_URL}${pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`}`;
     }
 
     const authState = {
@@ -665,7 +674,81 @@
     // Images API
     // =========================
 
+    async function uploadImageViaGateway(file, type) {
+        const accessToken = authState.accessToken;
+        const initHeaders = {
+            'Content-Type': 'application/json'
+        };
+
+        if (accessToken) {
+            initHeaders.Authorization = `Bearer ${accessToken}`;
+        }
+
+        const initRes = await fetch(toUploadApiUrl('/upload-url'), {
+            method: 'POST',
+            headers: initHeaders,
+            body: JSON.stringify({
+                file_name: file.name,
+                file_type: file.type || 'application/octet-stream',
+                upload_type: type || 'profile'
+            })
+        });
+
+        let initPayload = null;
+        try {
+            initPayload = await initRes.json();
+        } catch (error) {
+            initPayload = null;
+        }
+
+        if (!initRes.ok) {
+            throw normalizeApiError(initPayload || { message: 'image_upload_failed' }, initRes.status);
+        }
+
+        const initData = initPayload && initPayload.data ? initPayload.data : initPayload;
+        const uploadUrl = initData && initData.upload_url;
+        const imageUrl = initData && initData.image_url;
+        const objectKey = initData && initData.key;
+
+        if (!uploadUrl || !imageUrl) {
+            throw new ApiError('이미지 업로드 응답 형식이 올바르지 않습니다.', {
+                status: 500,
+                code: 'invalid_upload_response',
+                category: 'server',
+                raw: initPayload
+            });
+        }
+
+        const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': file.type || 'application/octet-stream'
+            },
+            body: file
+        });
+
+        if (!uploadRes.ok) {
+            throw new ApiError('이미지 업로드에 실패했습니다.', {
+                status: uploadRes.status || 500,
+                code: 'image_upload_failed',
+                category: uploadRes.status >= 500 ? 'server' : 'validation'
+            });
+        }
+
+        return {
+            message: 'upload_success',
+            data: {
+                image_url: imageUrl,
+                key: objectKey || null
+            }
+        };
+    }
+
     async function uploadImage(file, type = 'profile') {
+        if (FILE_UPLOAD_API_URL) {
+            return uploadImageViaGateway(file, type);
+        }
+
         const formData = new FormData();
         formData.append('file', file);
 
@@ -677,6 +760,7 @@
 
     const publicApi = {
         API_URL,
+        FILE_UPLOAD_API_URL,
         ApiError,
         request,
         apiRequest: request,
