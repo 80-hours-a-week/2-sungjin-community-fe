@@ -1,0 +1,41 @@
+name: Deploy Compose On Self-Hosted EC2
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - ".github/workflows/deploy-ec2-compose-self-hosted.yml"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag to deploy"
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64, ec2]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify docker runtime
+        run: |
+          set -euo pipefail
+          docker --version
+          docker compose version
+
+      - name: Deploy with local docker compose
+        env:
+          DOCKERHUB_USER: sungjin9288
+          TAG: miniquest-20260226-1213
+        run: |
+          set -euo pipefail
+          sudo fuser -k 3001/tcp || true
+          sudo fuser -k 8000/tcp || true
+          docker compose -f docker-compose.deploy.yml down --remove-orphans || true
+          docker compose -f docker-compose.deploy.yml pull
+          docker compose -f docker-compose.deploy.yml up -d
+          docker compose -f docker-compose.deploy.yml ps

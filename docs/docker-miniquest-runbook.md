@@ -1,138 +1,183 @@
 # Docker 미니퀘스트 실행 가이드
 
-작성일: 2026-02-25
+작성일: 2026-02-27
 
 ## 목표
-- FE/BE 이미지 빌드
-- docker compose 동시 실행
-- 로컬 통합 테스트
+- FE/BE를 Docker 이미지로 빌드
+- `frontend + backend + nginx(reverse proxy) + mysql`를 Docker Compose로 동시 실행
+- 통합 테스트 수행
 - Docker Hub 푸시
-- EC2 compose 배포
-- BE 컨테이너 이미지를 Lambda(ECR 기반)로 배포
-- Reverse proxy 미니퀘스트
-- EC2/ECS/Lambda CI/CD 파이프라인 기초 구성
+- Portainer + Private Registry 운영
+- Portainer HTTPS 적용 확인
 
-## 1. FE, BE 이미지 만들기
-프로젝트 루트에서:
+## 0. 사전 준비
+- FE 저장소: `/Users/sungjin/dev/personal/2-sungjin-community-fe`
+- BE 저장소: `/Users/sungjin/dev/personal/2-sungjin-community-be`
+- Docker Desktop 또는 Docker Engine + Compose Plugin
+
+확인:
 
 ```bash
-docker compose build
+docker --version
+docker compose version
 ```
 
-생성 이미지 확인:
+## 1. FE/BE 이미지 빌드
+
+```bash
+cd /Users/sungjin/dev/personal/2-sungjin-community-fe
+docker compose -f docker-compose.reverse-proxy.yml build
+```
+
+이미지 확인:
 
 ```bash
 docker images | grep -E "community-(frontend|backend)"
 ```
 
-## 2. docker compose로 2개 이미지 동시 실행
+## 2. Reverse Proxy + MySQL 포함 전체 스택 실행
 
 ```bash
-docker compose up -d
-docker compose ps
+cd /Users/sungjin/dev/personal/2-sungjin-community-fe
+docker compose -f docker-compose.reverse-proxy.yml up -d
+docker compose -f docker-compose.reverse-proxy.yml ps
 ```
 
-## 3. test
-헬스체크:
+구성:
+- `community-mysql` (MySQL 8.4)
+- `community-backend` (FastAPI + Alembic)
+- `community-frontend` (Express)
+- `community-reverse-proxy` (Nginx, `:8080`)
+
+## 3. 기능/헬스체크 검증
 
 ```bash
-curl -i http://127.0.0.1:8000/health
-curl -i http://127.0.0.1:3001/login
+curl -i http://127.0.0.1:8080/api/health
+curl -i http://127.0.0.1:8080/
 ```
 
 통합 테스트:
 
 ```bash
-API_URL=http://127.0.0.1:8000 npm run test:integration
+cd /Users/sungjin/dev/personal/2-sungjin-community-fe
+API_URL=http://127.0.0.1:8080/api npm run test:integration
 ```
 
-## 4. Docker Hub에 이미지 푸시
-Docker Hub 로그인:
+업로드 테스트(API Gateway 경로 유지 시):
 
 ```bash
-docker login
+FILE_UPLOAD_API_URL=https://<api-id>.execute-api.ap-northeast-2.amazonaws.com npm run test:upload
 ```
 
-멀티 아키텍처(기본) 푸시:
+## 4. Docker Hub 푸시
+
+로그인:
 
 ```bash
+docker login -u <dockerhub-username>
+```
+
+멀티 아키텍처 푸시:
+
+```bash
+cd /Users/sungjin/dev/personal/2-sungjin-community-fe
 ./scripts/docker-push.sh <dockerhub-username> <tag>
-# 예: ./scripts/docker-push.sh sungjin9288 v1.0.0
 ```
 
-특정 아키텍처만 푸시:
+예시:
 
 ```bash
-./scripts/docker-push.sh <dockerhub-username> <tag> linux/arm64
+./scripts/docker-push.sh sungjin9288 miniquest-20260227-1
 ```
 
-## 5. EC2에 compose로 배포
+## 5. EC2 Compose 배포 (선택)
+
+기본(기존 2컨테이너) 배포:
 
 ```bash
-./scripts/ec2-compose-deploy.sh <ec2-host> <ec2-user> <dockerhub-username> <tag> [ssh-key-path]
-# 예: ./scripts/ec2-compose-deploy.sh 13.124.45.148 ec2-user sungjin9288 v1.0.0 ~/community-prod-key.pem
+cd /Users/sungjin/dev/personal/2-sungjin-community-fe
+./scripts/ec2-compose-deploy.sh <ec2-host> <ec2-user> <dockerhub-user> <tag> [ssh-key-path]
+```
+
+예시:
+
+```bash
+./scripts/ec2-compose-deploy.sh 13.124.45.148 ec2-user sungjin9288 miniquest-20260227-1 ~/community-prod-key.pem
+```
+
+과제형(nginx + mysql 포함) 배포:
+
+```bash
+cd /Users/sungjin/dev/personal/2-sungjin-community-fe
+COMPOSE_FILE=docker-compose.reverse-proxy.deploy.yml \
+./scripts/ec2-compose-deploy.sh <ec2-host> <ec2-user> <dockerhub-user> <tag> [ssh-key-path]
+```
+
+## 6. Portainer + Private Registry 실행
+
+```bash
+cd /Users/sungjin/dev/personal/2-sungjin-community-fe
+docker compose -f docker-compose.portainer-registry.yml up -d
+docker compose -f docker-compose.portainer-registry.yml ps
+```
+
+포트:
+- Portainer HTTPS: `9443`
+- Private Registry: `5000`
+
+## 7. Portainer HTTPS 검증
+
+브라우저:
+- `https://<서버IP>:9443`
+- 첫 접속 시 self-signed 인증서 경고가 보이면 예외 허용 후 진입
+
+CLI 확인:
+
+```bash
+curl -kI https://127.0.0.1:9443
+```
+
+## 8. Portainer에서 Registry 연결 및 이미지 관리
+
+1. Portainer 로그인 후 `Settings` -> `Registries`
+2. `Add registry`
+3. Name: `community-private-registry`
+4. URL: `http://registry:5000` (Portainer와 같은 Docker 네트워크 기준)
+5. 저장 후 연결 확인
+
+로컬에서 프라이빗 레지스트리 푸시 예시:
+
+```bash
+docker tag sungjin9288/community-frontend:miniquest-20260227-1 localhost:5000/community-frontend:miniquest-20260227-1
+docker push localhost:5000/community-frontend:miniquest-20260227-1
+```
+
+```bash
+docker tag sungjin9288/community-backend:miniquest-20260227-1 localhost:5000/community-backend:miniquest-20260227-1
+docker push localhost:5000/community-backend:miniquest-20260227-1
 ```
 
 참고:
-- EC2 배포는 `docker-compose.deploy.yml`(image 기반) 사용
-- 로컬 개발/검증은 `docker-compose.yml`(build 기반) 사용
+- Docker Engine이 `http://localhost:5000` 푸시를 차단하면 Docker 데몬에 `insecure-registries` 설정이 필요할 수 있습니다.
+- EC2에서는 `/etc/docker/daemon.json`에 `"insecure-registries": ["<registry-host>:5000"]` 추가 후 Docker 재시작으로 해결합니다.
 
-## 6. BE 이미지 -> Lambda 배포
-중요: Lambda 컨테이너 이미지는 ECR 이미지만 지원합니다.
+## 9. 정리
 
-구현 파일:
-- `2-sungjin-community-be/Dockerfile.lambda`
-- `2-sungjin-community-be/app/lambda_handler.py`
-- `2-sungjin-community-be/scripts/deploy-lambda-image.sh`
-
-로컬/수동 배포:
+애플리케이션 스택 종료:
 
 ```bash
-cd ../2-sungjin-community-be
-./scripts/deploy-lambda-image.sh <aws-region> <aws-account-id> <ecr-repository> <lambda-function-name> [image-tag] [lambda-role-arn]
-# 예: ./scripts/deploy-lambda-image.sh ap-northeast-2 123456789012 community-backend-lambda community-backend-lambda v1.0.0 arn:aws:iam::123456789012:role/lambda-exec-role
+docker compose -f docker-compose.reverse-proxy.yml down
 ```
 
-## 7. Docker Reverse Proxy 미니퀘스트
-구현 파일:
-- `docker-compose.reverse-proxy.yml`
-- `ops/nginx/reverse-proxy.conf`
-
-실행:
+Portainer/Registry 스택 종료:
 
 ```bash
-docker compose -f docker-compose.reverse-proxy.yml up -d --build
+docker compose -f docker-compose.portainer-registry.yml down
 ```
 
-검증:
+볼륨까지 제거:
 
 ```bash
-curl -i http://127.0.0.1:8080/
-curl -i http://127.0.0.1:8080/api/health
-```
-
-## 8. EC2 / ECS Fargate / Lambda CI-CD
-구현 워크플로우:
-- FE CI: `.github/workflows/ci-frontend.yml`
-- FE EC2 배포: `.github/workflows/deploy-ec2-compose.yml`
-- BE CI: `../2-sungjin-community-be/.github/workflows/ci-backend.yml`
-- BE ECS Fargate 배포: `../2-sungjin-community-be/.github/workflows/deploy-ecs-fargate.yml`
-- BE Lambda 이미지 배포: `../2-sungjin-community-be/.github/workflows/deploy-lambda-image.yml`
-
-필수 GitHub Secrets(요약):
-- 공통 AWS: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_ACCOUNT_ID`
-- FE EC2: `EC2_HOST`, `EC2_USER`, `EC2_SSH_PRIVATE_KEY`, `DOCKERHUB_USER`
-- BE ECS: `ECS_CLUSTER`, `ECS_SERVICE`, `ECS_TASK_FAMILY`, `ECS_EXECUTION_ROLE_ARN`, `ECS_TASK_ROLE_ARN`, `ECS_LOG_GROUP`
-- BE Lambda: `LAMBDA_EXEC_ROLE_ARN`
-
-## 정리 명령
-
-```bash
-docker compose down
-```
-
-볼륨까지 정리:
-
-```bash
-docker compose down -v
+docker compose -f docker-compose.reverse-proxy.yml down -v
+docker compose -f docker-compose.portainer-registry.yml down -v
 ```

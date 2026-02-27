@@ -41,13 +41,30 @@ async function run() {
     }
 
     console.log('2. Uploading file to S3 with presigned URL...');
-    const uploadRes = await fetch(data.upload_url, {
+    let uploadRes = await fetch(data.upload_url, {
         method: 'PUT',
+        redirect: 'manual',
         headers: {
             'Content-Type': fileType
         },
-        body: fileBuffer
+        body: Buffer.from(fileBuffer)
     });
+
+    // S3 may redirect (307) from global endpoint to regional endpoint.
+    // Some Node/undici versions fail on automatic redirect for streamed PUT body.
+    if (uploadRes.status >= 300 && uploadRes.status < 400) {
+        const redirectUrl = uploadRes.headers.get('location');
+        if (!redirectUrl) {
+            throw new Error(`S3 redirect without Location header: ${uploadRes.status}`);
+        }
+        uploadRes = await fetch(redirectUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': fileType
+            },
+            body: Buffer.from(fileBuffer)
+        });
+    }
 
     if (!uploadRes.ok) {
         throw new Error(`S3 upload failed: ${uploadRes.status}`);

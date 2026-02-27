@@ -173,10 +173,13 @@ FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run 
 
 - 로컬 FE/BE 통합 실행: `docker-compose.yml`
 - EC2 배포용 compose: `docker-compose.deploy.yml`
-- Reverse proxy 구성: `docker-compose.reverse-proxy.yml`
+- Reverse proxy + MySQL 구성: `docker-compose.reverse-proxy.yml`
+- Reverse proxy + MySQL EC2 배포용 compose: `docker-compose.reverse-proxy.deploy.yml`
 - Nginx reverse proxy 설정: `ops/nginx/reverse-proxy.conf`
+- Portainer + Private Registry 구성: `docker-compose.portainer-registry.yml`
 - 이미지 빌드/푸시 스크립트: `scripts/docker-push.sh` (multi-arch: `amd64` + `arm64`)
 - EC2 compose 배포 스크립트: `scripts/ec2-compose-deploy.sh`
+- Docker 미니퀘스트 실행 가이드: `docs/docker-miniquest-runbook.md`
 - FE CI: `.github/workflows/ci-frontend.yml`
 - FE EC2 CD: `.github/workflows/deploy-ec2-compose.yml`
 - BE Lambda 배포 스크립트: `../2-sungjin-community-be/scripts/deploy-lambda-image.sh`
@@ -199,7 +202,7 @@ FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run 
 | EFS | ✅ 완료 | `aws_efs_file_system.shared`, `aws_efs_mount_target.private[*]` |
 | CloudTrail | ✅ 완료 | `aws_cloudtrail.main` |
 | CloudWatch | ✅ 완료 | `aws_cloudwatch_log_group.*`, `aws_cloudwatch_metric_alarm.*` |
-| RDS (PostgreSQL) | ✅ 완료 | `aws_db_instance.postgres` |
+| RDS (PostgreSQL) | ✅ 완료 (구축/검증 후 비용 최적화 삭제) | `aws_db_instance.postgres` + `docs/rds-usage-deletion-evidence.md` |
 | S3 | ✅ 완료 | `aws_s3_bucket.uploads`, `aws_s3_bucket.cloudtrail` |
 | API Gateway | ✅ 완료 | `aws_apigatewayv2_api.upload` |
 | Lambda | ✅ 완료 | `aws_lambda_function.upload` |
@@ -212,6 +215,7 @@ FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run 
 - Frontend Routing: `/` 접속 시 `302 -> /login`
 - API Integration Test: `npm run test:integration` 통과
 - File Upload Test: `npm run test:upload` 통과
+- RDS 운영/삭제 증빙: `docs/rds-usage-deletion-evidence.md`
 
 #### 인프라 상태 점검 명령
 
