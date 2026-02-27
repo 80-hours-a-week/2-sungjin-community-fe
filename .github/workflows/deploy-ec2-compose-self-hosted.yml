@@ -1,0 +1,41 @@
+name: Deploy Compose On Self-Hosted EC2
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag to deploy"
+        required: true
+        type: string
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, x64, ec2]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify docker runtime
+        run: |
+          set -euo pipefail
+          docker --version
+          docker compose version
+
+      - name: Docker Hub login
+        env:
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+          DOCKERHUB_PAT: ${{ secrets.DOCKERHUB_PAT }}
+        run: |
+          set -euo pipefail
+          echo "$DOCKERHUB_PAT" | docker login -u "$DOCKERHUB_USER" --password-stdin
+
+      - name: Deploy with local docker compose
+        env:
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+          TAG: ${{ github.event.inputs.image_tag }}
+        run: |
+          set -euo pipefail
+          docker compose -f docker-compose.deploy.yml pull
+          docker compose -f docker-compose.deploy.yml up -d
+          docker compose -f docker-compose.deploy.yml ps

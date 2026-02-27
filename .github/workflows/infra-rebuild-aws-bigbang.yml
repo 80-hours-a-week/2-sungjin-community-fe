@@ -1,0 +1,78 @@
+name: Rebuild AWS BigBang Infra
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Choose infra action"
+        required: true
+        default: "rebuild"
+        type: choice
+        options:
+          - rebuild
+          - destroy
+      confirm:
+        description: "Type DESTROY_PROD to continue"
+        required: true
+        type: string
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: infra/aws-bigbang
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Guard confirmation
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event.inputs.confirm }}" != "DESTROY_PROD" ]]; then
+            echo "Invalid confirmation text. Type DESTROY_PROD."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+
+      - name: Write terraform.auto.tfvars from secret
+        env:
+          TERRAFORM_TFVARS: ${{ secrets.TERRAFORM_TFVARS }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${TERRAFORM_TFVARS:-}" ]]; then
+            echo "Missing secret: TERRAFORM_TFVARS"
+            exit 1
+          fi
+          printf '%s\n' "$TERRAFORM_TFVARS" > terraform.auto.tfvars
+
+      - name: Terraform init and validate
+        run: |
+          set -euo pipefail
+          terraform init -input=false
+          terraform validate
+
+      - name: Terraform destroy
+        run: |
+          set -euo pipefail
+          terraform destroy -auto-approve -input=false
+
+      - name: Terraform apply (rebuild mode only)
+        if: github.event.inputs.mode == 'rebuild'
+        run: |
+          set -euo pipefail
+          terraform apply -auto-approve -input=false
