@@ -173,10 +173,13 @@ FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run 
 
 - 로컬 FE/BE 통합 실행: `docker-compose.yml`
 - EC2 배포용 compose: `docker-compose.deploy.yml`
-- Reverse proxy 구성: `docker-compose.reverse-proxy.yml`
+- Reverse proxy + MySQL 구성: `docker-compose.reverse-proxy.yml`
+- Reverse proxy + MySQL EC2 배포용 compose: `docker-compose.reverse-proxy.deploy.yml`
 - Nginx reverse proxy 설정: `ops/nginx/reverse-proxy.conf`
+- Portainer + Private Registry 구성: `docker-compose.portainer-registry.yml`
 - 이미지 빌드/푸시 스크립트: `scripts/docker-push.sh` (multi-arch: `amd64` + `arm64`)
 - EC2 compose 배포 스크립트: `scripts/ec2-compose-deploy.sh`
+- Docker 미니퀘스트 실행 가이드: `docs/docker-miniquest-runbook.md`
 - FE CI: `.github/workflows/ci-frontend.yml`
 - FE EC2 CD: `.github/workflows/deploy-ec2-compose.yml`
 - BE Lambda 배포 스크립트: `../2-sungjin-community-be/scripts/deploy-lambda-image.sh`

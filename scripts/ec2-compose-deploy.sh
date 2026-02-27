@@ -4,6 +4,7 @@ set -euo pipefail
 if [[ $# -lt 4 ]]; then
   echo "Usage: $0 <ec2-host> <ec2-user> <dockerhub-user> <tag> [ssh-key-path]"
   echo "Example: $0 13.124.45.148 ec2-user sungjin9288 v1.0.0 ~/.ssh/community-prod-key.pem"
+  echo "Optional env: COMPOSE_FILE=docker-compose.reverse-proxy.deploy.yml"
   exit 1
 fi
 
@@ -12,15 +13,22 @@ EC2_USER="$2"
 DOCKERHUB_USER="$3"
 TAG="$4"
 SSH_KEY_PATH="${5:-}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.deploy.yml}"
+
+if [[ ! -f "$COMPOSE_FILE" ]]; then
+  echo "Compose file not found: $COMPOSE_FILE"
+  exit 1
+fi
 
 SSH_OPTS=(-o StrictHostKeyChecking=accept-new)
 if [[ -n "$SSH_KEY_PATH" ]]; then
   SSH_OPTS+=(-i "$SSH_KEY_PATH")
 fi
 
-ssh "${SSH_OPTS[@]}" "${EC2_USER}@${EC2_HOST}" "mkdir -p ~/community-compose"
+ssh "${SSH_OPTS[@]}" "${EC2_USER}@${EC2_HOST}" "mkdir -p ~/community-compose/ops/nginx"
 
-scp "${SSH_OPTS[@]}" docker-compose.deploy.yml "${EC2_USER}@${EC2_HOST}:~/community-compose/docker-compose.deploy.yml"
+scp "${SSH_OPTS[@]}" "$COMPOSE_FILE" "${EC2_USER}@${EC2_HOST}:~/community-compose/docker-compose.deploy.yml"
+scp "${SSH_OPTS[@]}" ops/nginx/reverse-proxy.conf "${EC2_USER}@${EC2_HOST}:~/community-compose/ops/nginx/reverse-proxy.conf"
 
 ssh "${SSH_OPTS[@]}" "${EC2_USER}@${EC2_HOST}" "bash -lc '
   set -euo pipefail
