@@ -199,7 +199,7 @@ FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run 
 | EFS | ✅ 완료 | `aws_efs_file_system.shared`, `aws_efs_mount_target.private[*]` |
 | CloudTrail | ✅ 완료 | `aws_cloudtrail.main` |
 | CloudWatch | ✅ 완료 | `aws_cloudwatch_log_group.*`, `aws_cloudwatch_metric_alarm.*` |
-| RDS (PostgreSQL) | ✅ 완료 | `aws_db_instance.postgres` |
+| RDS (PostgreSQL) | ✅ 완료 (구축/검증 후 비용 최적화 삭제) | `aws_db_instance.postgres` + `docs/rds-usage-deletion-evidence.md` |
 | S3 | ✅ 완료 | `aws_s3_bucket.uploads`, `aws_s3_bucket.cloudtrail` |
 | API Gateway | ✅ 완료 | `aws_apigatewayv2_api.upload` |
 | Lambda | ✅ 완료 | `aws_lambda_function.upload` |
@@ -212,6 +212,7 @@ FILE_UPLOAD_API_URL=https://{api-id}.execute-api.{region}.amazonaws.com npm run 
 - Frontend Routing: `/` 접속 시 `302 -> /login`
 - API Integration Test: `npm run test:integration` 통과
 - File Upload Test: `npm run test:upload` 통과
+- RDS 운영/삭제 증빙: `docs/rds-usage-deletion-evidence.md`
 
 #### 인프라 상태 점검 명령
 
