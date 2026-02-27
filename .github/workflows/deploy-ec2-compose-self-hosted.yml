@@ -38,8 +38,8 @@ jobs:
 
       - name: Deploy with local docker compose
         env:
-          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER || 'sungjin9288' }}
-          TAG: ${{ github.event.inputs.image_tag || 'miniquest-20260226-1213' }}
+          DOCKERHUB_USER: sungjin9288
+          TAG: miniquest-20260226-1213
         run: |
           set -euo pipefail
           docker compose -f docker-compose.deploy.yml pull
