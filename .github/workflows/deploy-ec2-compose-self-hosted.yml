@@ -33,6 +33,9 @@ jobs:
           TAG: miniquest-20260226-1213
         run: |
           set -euo pipefail
+          sudo fuser -k 3001/tcp || true
+          sudo fuser -k 8000/tcp || true
+          docker compose -f docker-compose.deploy.yml down --remove-orphans || true
           docker compose -f docker-compose.deploy.yml pull
           docker compose -f docker-compose.deploy.yml up -d
           docker compose -f docker-compose.deploy.yml ps
