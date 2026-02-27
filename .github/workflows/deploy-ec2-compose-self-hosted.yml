@@ -1,6 +1,11 @@
 name: Deploy Compose On Self-Hosted EC2
 
 on:
+  push:
+    branches:
+      - develop
+    paths:
+      - ".github/workflows/deploy-ec2-compose-self-hosted.yml"
   workflow_dispatch:
     inputs:
       image_tag:
@@ -33,7 +38,7 @@ jobs:
       - name: Deploy with local docker compose
         env:
           DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
-          TAG: ${{ github.event.inputs.image_tag }}
+          TAG: ${{ github.event.inputs.image_tag || 'miniquest-20260226-1213' }}
         run: |
           set -euo pipefail
           docker compose -f docker-compose.deploy.yml pull
