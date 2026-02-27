@@ -6,10 +6,17 @@ from datetime import datetime, timezone
 
 import boto3
 
-S3 = boto3.client("s3")
 UPLOAD_BUCKET = os.environ["UPLOAD_BUCKET"]
 APP_REGION = os.environ.get("APP_REGION", "ap-northeast-2")
 URL_TTL = int(os.environ.get("URL_TTL", "600"))
+
+# Force regional S3 endpoint to avoid global endpoint redirects
+# that can break presigned PUT requests with signed host headers.
+S3 = boto3.client(
+    "s3",
+    region_name=APP_REGION,
+    endpoint_url=f"https://s3.{APP_REGION}.amazonaws.com",
+)
 
 ALLOWED_UPLOAD_TYPES = {"profile", "post"}
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
