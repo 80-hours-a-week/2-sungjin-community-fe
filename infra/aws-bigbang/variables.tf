@@ -111,6 +111,12 @@ variable "db_instance_class" {
   default     = "db.t4g.micro"
 }
 
+variable "enable_rds" {
+  description = "Whether to provision RDS PostgreSQL"
+  type        = bool
+  default     = false
+}
+
 variable "upload_presigned_ttl_seconds" {
   description = "S3 presigned URL expiration seconds"
   type        = number

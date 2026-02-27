@@ -93,7 +93,7 @@ resource "aws_instance" "backend" {
     efs_id              = aws_efs_file_system.shared.id
     backend_repo_url    = var.backend_repo_url
     backend_repo_branch = var.backend_repo_branch
-    database_url        = "postgresql+psycopg2://${var.db_username}:${urlencode(var.db_password)}@${aws_db_instance.postgres.address}:${aws_db_instance.postgres.port}/${var.db_name}"
+    database_url        = var.enable_rds ? "postgresql+psycopg2://${var.db_username}:${urlencode(var.db_password)}@${aws_db_instance.postgres[0].address}:${aws_db_instance.postgres[0].port}/${var.db_name}" : "sqlite+pysqlite:///opt/community-be/community.db"
     cors_allow_origins  = "http://${aws_lb.frontend.dns_name},https://${aws_lb.frontend.dns_name},http://localhost:3001,http://127.0.0.1:3001"
     upload_bucket       = aws_s3_bucket.uploads.bucket
   })
@@ -104,7 +104,6 @@ resource "aws_instance" "backend" {
   }
 
   depends_on = [
-    aws_db_instance.postgres,
     aws_efs_mount_target.private
   ]
 

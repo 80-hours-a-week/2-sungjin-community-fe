@@ -8,6 +8,8 @@ resource "aws_db_subnet_group" "main" {
 }
 
 resource "aws_db_instance" "postgres" {
+  count = var.enable_rds ? 1 : 0
+
   identifier             = "${local.name_prefix}-postgres"
   allocated_storage      = 20
   max_allocated_storage  = 100

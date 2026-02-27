@@ -20,7 +20,7 @@ output "frontend_eip" {
 
 output "rds_endpoint" {
   description = "RDS PostgreSQL endpoint"
-  value       = aws_db_instance.postgres.address
+  value       = var.enable_rds ? aws_db_instance.postgres[0].address : null
 }
 
 output "uploads_bucket" {
