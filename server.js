@@ -12,18 +12,22 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // 정적 파일 제공
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ✅ 환경변수를 JavaScript로 제공 (캐싱 방지 중요!)
+// ✅ 환경변수를 JavaScript로 제공 (JSON.stringify로 XSS/파싱 오류 방어)
 app.get('/config.js', (req, res) => {
     res.set('Content-Type', 'application/javascript');
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.send(`
-        window.ENV_CONFIG = {
-            API_URL: '${API_URL}',
-            FILE_UPLOAD_API_URL: '${FILE_UPLOAD_API_URL}',
-            NODE_ENV: '${NODE_ENV}',
-            IS_DEV: ${NODE_ENV === 'development'}
-        };
-    `);
+    const config = {
+        API_URL,
+        FILE_UPLOAD_API_URL,
+        NODE_ENV,
+        IS_DEV: NODE_ENV === 'development',
+    };
+    res.send(`window.ENV_CONFIG = ${JSON.stringify(config)};`);
+});
+
+// Blue/Green 배포 시 L7 health check 용도
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'healthy', service: 'frontend' });
 });
 
 // 라우팅
