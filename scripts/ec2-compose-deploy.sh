@@ -58,7 +58,9 @@ ssh "${SSH_OPTS[@]}" "${EC2_USER}@${EC2_HOST}" "bash -lc '
       sudo yum install -y docker
     elif command -v apt-get >/dev/null 2>&1; then
       sudo apt-get update -y
-      sudo apt-get install -y docker.io docker-compose-plugin
+      sudo apt-get install -y docker.io
+      sudo apt-get install -y docker-compose-plugin >/dev/null 2>&1 || \
+        sudo apt-get install -y docker-compose-v2 >/dev/null 2>&1 || true
     else
       echo \"Unsupported package manager: cannot install docker\" >&2
       exit 1
@@ -73,7 +75,8 @@ ssh "${SSH_OPTS[@]}" "${EC2_USER}@${EC2_HOST}" "bash -lc '
     elif command -v yum >/dev/null 2>&1; then
       sudo yum install -y docker-compose-plugin >/dev/null 2>&1 || true
     elif command -v apt-get >/dev/null 2>&1; then
-      sudo apt-get install -y docker-compose-plugin >/dev/null 2>&1 || true
+      sudo apt-get install -y docker-compose-plugin >/dev/null 2>&1 || \
+        sudo apt-get install -y docker-compose-v2 >/dev/null 2>&1 || true
     fi
 
     # Fallback: install compose plugin binary directly.
