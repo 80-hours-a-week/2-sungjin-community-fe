@@ -1,0 +1,48 @@
+{
+  "family": "community-prod-backend-task",
+  "executionRoleArn": "arn:aws:iam::217139788460:role/community-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::217139788460:role/community-ecs-task-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [
+    {
+      "name": "community-backend",
+      "image": "sungjin9288/community-backend:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "DATABASE_URL",
+          "value": "sqlite:///./community.db"
+        },
+        {
+          "name": "CORS_ALLOW_ORIGINS",
+          "value": "http://3.36.126.75,http://localhost:3001,http://127.0.0.1:3001"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-create-group": "true",
+          "awslogs-group": "/ecs/community-prod-backend-task",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

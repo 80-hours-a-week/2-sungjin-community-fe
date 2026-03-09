@@ -1,0 +1,56 @@
+{
+  "family": "community-prod-frontend-task",
+  "executionRoleArn": "arn:aws:iam::217139788460:role/community-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::217139788460:role/community-ecs-task-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "containerDefinitions": [
+    {
+      "name": "community-frontend",
+      "image": "sungjin9288/community-frontend:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3001,
+          "hostPort": 3001,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "PORT",
+          "value": "3001"
+        },
+        {
+          "name": "API_URL",
+          "value": "http://3.35.3.239:8080"
+        },
+        {
+          "name": "FILE_UPLOAD_API_URL",
+          "value": "https://u33b22v0y6.execute-api.ap-northeast-2.amazonaws.com"
+        },
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-create-group": "true",
+          "awslogs-group": "/ecs/community-prod-frontend-task",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

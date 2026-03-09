@@ -19,6 +19,13 @@ DOCKERHUB_USER="$3"
 TAG="$4"
 SSH_KEY_PATH="${5:-}"
 FILE_UPLOAD_API_URL="${FILE_UPLOAD_API_URL:-}"
+FRONTEND_API_URL="$API_URL"
+API_PROXY_TARGET=""
+
+if [[ "$API_URL" =~ ^https?:// ]]; then
+  FRONTEND_API_URL="/api"
+  API_PROXY_TARGET="$API_URL"
+fi
 
 SSH_OPTS=(-o StrictHostKeyChecking=accept-new)
 if [[ -n "$SSH_KEY_PATH" ]]; then
@@ -26,7 +33,7 @@ if [[ -n "$SSH_KEY_PATH" ]]; then
 fi
 
 ssh "${SSH_OPTS[@]}" "${EC2_USER}@${EC2_HOST}" \
-  "DOCKERHUB_USER='${DOCKERHUB_USER}' TAG='${TAG}' API_URL='${API_URL}' FILE_UPLOAD_API_URL='${FILE_UPLOAD_API_URL}' bash -s" <<'REMOTE_EOF'
+  "DOCKERHUB_USER='${DOCKERHUB_USER}' TAG='${TAG}' FRONTEND_API_URL='${FRONTEND_API_URL}' API_PROXY_TARGET='${API_PROXY_TARGET}' FILE_UPLOAD_API_URL='${FILE_UPLOAD_API_URL}' bash -s" <<'REMOTE_EOF'
 set -euo pipefail
 
 REMOTE_DIR="$HOME/community-fe-bluegreen"
@@ -79,7 +86,7 @@ sudo docker run -d \
   --restart unless-stopped \
   --network "$NETWORK_NAME" \
   -e PORT=3001 \
-  -e API_URL="$API_URL" \
+  -e API_URL="$FRONTEND_API_URL" \
   -e FILE_UPLOAD_API_URL="$FILE_UPLOAD_API_URL" \
   "$IMAGE" >/dev/null
 
@@ -104,6 +111,19 @@ cat > "$REMOTE_DIR/nginx/default.conf" <<NGINX_CONF
 server {
   listen 80;
   server_name _;
+
+$(if [[ -n "$API_PROXY_TARGET" ]]; then cat <<API_PROXY_BLOCK
+  location /api/ {
+    proxy_pass ${API_PROXY_TARGET};
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+  }
+
+API_PROXY_BLOCK
+fi)
 
   location /health {
     proxy_pass http://${NEXT_CONTAINER}:3001/health;

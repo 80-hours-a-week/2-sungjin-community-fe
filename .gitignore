@@ -39,3 +39,4 @@ build/
 tfplan
 tfplan.*
 infra/aws-bigbang/lambda/*.zip
+ops/github-actions-input/

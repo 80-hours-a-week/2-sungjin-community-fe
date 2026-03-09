@@ -487,4 +487,113 @@ Frontend와 Backend 트래픽을 별도 ALB로 분리하여, 병목 지점을 �
 
 ---
 
+## 10. 요청 사항 구현 반영 (2026-03-04)
+
+아래 4개 요청 항목을 저장소에 실행 가능한 형태로 반영했습니다.
+
+| 요청 항목 | 반영 결과 | 핵심 파일 |
+| :--- | :--- | :--- |
+| **1) FE, BE 도커 이미지화** | GitHub Actions에서 FE/BE 멀티아키(`amd64`, `arm64`) 빌드/푸시 자동화 | `.github/workflows/ci-cd-ec2-compose.yml`, `.github/workflows/deploy-k8s-fe-be.yml`, `scripts/docker-push.sh` |
+| **2) 도커 컴포즈로 EC2 배포** | 이미지 빌드 후 EC2에 compose 배포까지 자동 연결, `API_URL`/`FILE_UPLOAD_API_URL` 주입 지원 | `.github/workflows/ci-cd-ec2-compose.yml`, `scripts/ec2-compose-deploy.sh`, `docker-compose.deploy.yml` |
+| **3) GitHub Actions 기반 EC2/ECS CI/CD** | EC2 CI/CD + ECS CI/CD 워크플로우 분리 구성, ECS는 ECR 푸시 후 서비스 롤링 업데이트 | `.github/workflows/ci-cd-ec2-compose.yml`, `.github/workflows/ci-cd-ecs.yml` |
+| **4) K8S에 FE, BE 배포** | K8s 배포 템플릿/Ingress 추가 및 Actions 기반 `kubectl apply` 자동화 | `k8s/templates/*.yaml.tpl`, `.github/workflows/deploy-k8s-fe-be.yml` |
+
+### 10.1. 추가/수정 파일
+
+- `.github/workflows/ci-cd-ec2-compose.yml` (신규)
+- `.github/workflows/ci-cd-ecs.yml` (신규)
+- `.github/workflows/deploy-k8s-fe-be.yml` (신규)
+- `.github/workflows/deploy-ec2-compose-self-hosted.yml` (수정)
+- `.github/workflows/deploy-fe-blue-green.yml` (수정)
+- `k8s/templates/00-namespace.yaml.tpl` (신규)
+- `k8s/templates/10-backend.yaml.tpl` (신규)
+- `k8s/templates/20-frontend.yaml.tpl` (신규)
+- `k8s/templates/30-ingress.yaml.tpl` (신규)
+- `scripts/ec2-compose-deploy.sh` (수정)
+- `docker-compose.deploy.yml` (수정)
+
+### 10.2. GitHub Secrets / Repository Variables
+
+브랜치 매핑:
+- `develop` -> `staging`
+- `main` -> `production`
+
+**공통**
+- Secrets: `DOCKERHUB_USER`, `DOCKERHUB_PAT`
+- Optional Secret: `BACKEND_REPO_TOKEN`
+- Optional Vars: `BACKEND_REPO`, `BACKEND_REF`
+
+**EC2 Compose CI/CD (`ci-cd-ec2-compose.yml`)**
+- Staging Secrets: `STAGING_EC2_HOST`, `STAGING_EC2_USER`, `STAGING_EC2_SSH_PRIVATE_KEY`
+- Prod Secrets: `PROD_EC2_HOST`, `PROD_EC2_USER`, `PROD_EC2_SSH_PRIVATE_KEY`
+- Fallback Secrets(기존 호환): `EC2_HOST`, `EC2_USER`, `EC2_SSH_PRIVATE_KEY`
+- Optional Vars:
+  - `STAGING_COMPOSE_FILE`, `PROD_COMPOSE_FILE`
+  - `STAGING_API_URL`, `PROD_API_URL`
+  - `STAGING_FILE_UPLOAD_API_URL`, `PROD_FILE_UPLOAD_API_URL`
+  - Fallback: `API_URL`, `FILE_UPLOAD_API_URL`
+
+**Self-hosted EC2 Compose (`deploy-ec2-compose-self-hosted.yml`)**
+- Optional Vars:
+  - `STAGING_COMPOSE_FILE`, `PROD_COMPOSE_FILE`
+  - `STAGING_API_URL`, `PROD_API_URL`
+  - `STAGING_FILE_UPLOAD_API_URL`, `PROD_FILE_UPLOAD_API_URL`
+  - Fallback: `API_URL`, `FILE_UPLOAD_API_URL`
+- 참고: self-hosted 러너 호스트/라벨은 staging/prod 환경에 맞게 별도 운영 권장
+
+**ECS CI/CD (`ci-cd-ecs.yml`)**
+- Staging Secrets: `STAGING_AWS_ACCESS_KEY_ID`, `STAGING_AWS_SECRET_ACCESS_KEY`
+- Prod Secrets: `PROD_AWS_ACCESS_KEY_ID`, `PROD_AWS_SECRET_ACCESS_KEY`
+- Fallback Secrets(기존 호환): `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- Vars(브랜치별 우선 사용):
+  - `STAGING_AWS_REGION`, `PROD_AWS_REGION` (fallback: `AWS_REGION`)
+  - `STAGING_ECR_FRONTEND_REPOSITORY`, `PROD_ECR_FRONTEND_REPOSITORY` (fallback: `ECR_FRONTEND_REPOSITORY`)
+  - `STAGING_ECR_BACKEND_REPOSITORY`, `PROD_ECR_BACKEND_REPOSITORY` (fallback: `ECR_BACKEND_REPOSITORY`)
+  - `STAGING_ECS_CLUSTER_NAME`, `PROD_ECS_CLUSTER_NAME` (fallback: `ECS_CLUSTER_NAME`)
+  - `STAGING_ECS_FRONTEND_SERVICE`, `PROD_ECS_FRONTEND_SERVICE` (fallback: `ECS_FRONTEND_SERVICE`)
+  - `STAGING_ECS_BACKEND_SERVICE`, `PROD_ECS_BACKEND_SERVICE` (fallback: `ECS_BACKEND_SERVICE`)
+  - `STAGING_ECS_FRONTEND_TASK_FAMILY`, `PROD_ECS_FRONTEND_TASK_FAMILY` (fallback: `ECS_FRONTEND_TASK_FAMILY`)
+  - `STAGING_ECS_BACKEND_TASK_FAMILY`, `PROD_ECS_BACKEND_TASK_FAMILY` (fallback: `ECS_BACKEND_TASK_FAMILY`)
+  - Optional container vars: `STAGING_ECS_FRONTEND_CONTAINER_NAME`, `PROD_ECS_FRONTEND_CONTAINER_NAME`, `STAGING_ECS_BACKEND_CONTAINER_NAME`, `PROD_ECS_BACKEND_CONTAINER_NAME`
+
+**K8s CI/CD (`deploy-k8s-fe-be.yml`)**
+- Staging Secret: `KUBE_CONFIG_DATA_STAGING`
+- Prod Secret: `KUBE_CONFIG_DATA_PROD`
+- Fallback Secret(기존 호환): `KUBE_CONFIG_DATA`
+- Vars(브랜치별 우선 사용):
+  - `K8S_API_URL_STAGING`, `K8S_API_URL_PROD` (fallback: `K8S_API_URL`)
+  - `K8S_FILE_UPLOAD_API_URL_STAGING`, `K8S_FILE_UPLOAD_API_URL_PROD` (fallback: `K8S_FILE_UPLOAD_API_URL`)
+  - `K8S_DATABASE_URL_STAGING`, `K8S_DATABASE_URL_PROD` (fallback: `K8S_DATABASE_URL`)
+  - `K8S_CORS_ALLOW_ORIGINS_STAGING`, `K8S_CORS_ALLOW_ORIGINS_PROD` (fallback: `K8S_CORS_ALLOW_ORIGINS`)
+  - `K8S_INGRESS_CLASS_NAME_STAGING`, `K8S_INGRESS_CLASS_NAME_PROD` (fallback: `K8S_INGRESS_CLASS_NAME`)
+
+**FE Blue/Green (`deploy-fe-blue-green.yml`)**
+- Staging Secrets:
+  - `STAGING_FE_BLUEGREEN_EC2_HOST`, `STAGING_FE_BLUEGREEN_EC2_USER`, `STAGING_FE_BLUEGREEN_EC2_SSH_PRIVATE_KEY`
+  - `STAGING_FE_BLUEGREEN_API_URL`, `STAGING_FE_BLUEGREEN_FILE_UPLOAD_API_URL`
+- Prod Secrets:
+  - `PROD_FE_BLUEGREEN_EC2_HOST`, `PROD_FE_BLUEGREEN_EC2_USER`, `PROD_FE_BLUEGREEN_EC2_SSH_PRIVATE_KEY`
+  - `PROD_FE_BLUEGREEN_API_URL`, `PROD_FE_BLUEGREEN_FILE_UPLOAD_API_URL`
+- Fallback Secrets(기존 호환):
+  - `FE_BLUEGREEN_EC2_HOST`, `FE_BLUEGREEN_EC2_USER`, `FE_BLUEGREEN_EC2_SSH_PRIVATE_KEY`
+  - `FE_BLUEGREEN_API_URL`, `FE_BLUEGREEN_FILE_UPLOAD_API_URL`
+
+### 10.3. 자동 실행 범위
+
+- `ci-cd-ec2-compose.yml`: `main/develop` push 시 자동 실행  
+  `develop`은 staging EC2, `main`은 production EC2로 분기
+- `deploy-ec2-compose-self-hosted.yml`: `main/develop` push 시 자동 실행  
+  `develop`은 staging 설정, `main`은 production 설정으로 분기
+- `ci-cd-ecs.yml`: `main/develop` push 시 자동 실행  
+  `develop`은 staging ECS 리소스, `main`은 production ECS 리소스로 분기
+- `deploy-k8s-fe-be.yml`: `main/develop` push 시 자동 실행  
+  `develop`은 staging kubeconfig/namespace, `main`은 production kubeconfig/namespace로 분기
+- `deploy-fe-blue-green.yml`: `main/develop` push 시 자동 실행  
+  `develop`은 staging blue/green 대상, `main`은 production blue/green 대상으로 분기
+
+> 참고: `infra-rebuild-aws-bigbang.yml`는 인프라 파괴/재생성 작업 특성상 수동 실행(`workflow_dispatch`) 유지
+> 참고: `deploy-ec2-compose.yml`는 수동 백업 배포용으로 유지
+
+---
+
 *본 문서는 개발 중인 커뮤니티 프로젝트의 인프라 안정성 설계안이며, 실제 운영 단계에서는 부하 테스트(Load Test) 결과를 바탕으로 수치 임계값을 재조정할 것을 권고합니다.*

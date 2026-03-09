@@ -5,6 +5,7 @@ if [[ $# -lt 4 ]]; then
   echo "Usage: $0 <ec2-host> <ec2-user> <dockerhub-user> <tag> [ssh-key-path]"
   echo "Example: $0 13.124.45.148 ec2-user sungjin9288 v1.0.0 ~/.ssh/community-prod-key.pem"
   echo "Optional env: COMPOSE_FILE=docker-compose.reverse-proxy.deploy.yml"
+  echo "Optional env: API_URL=http://<host>:8000 FILE_UPLOAD_API_URL=https://<upload-api>"
   exit 1
 fi
 
@@ -35,6 +36,8 @@ ssh "${SSH_OPTS[@]}" "${EC2_USER}@${EC2_HOST}" "bash -lc '
   cd ~/community-compose
   export DOCKERHUB_USER=${DOCKERHUB_USER}
   export TAG=${TAG}
+  export API_URL="${API_URL:-}"
+  export FILE_UPLOAD_API_URL="${FILE_UPLOAD_API_URL:-}"
   if ! command -v docker >/dev/null 2>&1; then
     # Keep small EC2 root disks from failing package installs.
     sudo journalctl --vacuum-time=3d >/dev/null 2>&1 || true
@@ -55,7 +58,9 @@ ssh "${SSH_OPTS[@]}" "${EC2_USER}@${EC2_HOST}" "bash -lc '
       sudo yum install -y docker
     elif command -v apt-get >/dev/null 2>&1; then
       sudo apt-get update -y
-      sudo apt-get install -y docker.io docker-compose-plugin
+      sudo apt-get install -y docker.io
+      sudo apt-get install -y docker-compose-plugin >/dev/null 2>&1 || \
+        sudo apt-get install -y docker-compose-v2 >/dev/null 2>&1 || true
     else
       echo \"Unsupported package manager: cannot install docker\" >&2
       exit 1
@@ -70,7 +75,8 @@ ssh "${SSH_OPTS[@]}" "${EC2_USER}@${EC2_HOST}" "bash -lc '
     elif command -v yum >/dev/null 2>&1; then
       sudo yum install -y docker-compose-plugin >/dev/null 2>&1 || true
     elif command -v apt-get >/dev/null 2>&1; then
-      sudo apt-get install -y docker-compose-plugin >/dev/null 2>&1 || true
+      sudo apt-get install -y docker-compose-plugin >/dev/null 2>&1 || \
+        sudo apt-get install -y docker-compose-v2 >/dev/null 2>&1 || true
     fi
 
     # Fallback: install compose plugin binary directly.
@@ -84,7 +90,7 @@ ssh "${SSH_OPTS[@]}" "${EC2_USER}@${EC2_HOST}" "bash -lc '
   fi
 
   sudo docker compose version
-  sudo DOCKERHUB_USER=\"$DOCKERHUB_USER\" TAG=\"$TAG\" docker compose -f docker-compose.deploy.yml pull
-  sudo DOCKERHUB_USER=\"$DOCKERHUB_USER\" TAG=\"$TAG\" docker compose -f docker-compose.deploy.yml up -d
-  sudo DOCKERHUB_USER=\"$DOCKERHUB_USER\" TAG=\"$TAG\" docker compose -f docker-compose.deploy.yml ps
+  sudo DOCKERHUB_USER=\"$DOCKERHUB_USER\" TAG=\"$TAG\" API_URL=\"$API_URL\" FILE_UPLOAD_API_URL=\"$FILE_UPLOAD_API_URL\" docker compose -f docker-compose.deploy.yml pull
+  sudo DOCKERHUB_USER=\"$DOCKERHUB_USER\" TAG=\"$TAG\" API_URL=\"$API_URL\" FILE_UPLOAD_API_URL=\"$FILE_UPLOAD_API_URL\" docker compose -f docker-compose.deploy.yml up -d
+  sudo DOCKERHUB_USER=\"$DOCKERHUB_USER\" TAG=\"$TAG\" API_URL=\"$API_URL\" FILE_UPLOAD_API_URL=\"$FILE_UPLOAD_API_URL\" docker compose -f docker-compose.deploy.yml ps
 '"
