@@ -1,0 +1,283 @@
+name: CI/CD To ECS
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - "Dockerfile"
+      - "package.json"
+      - "package-lock.json"
+      - "server.js"
+      - "routes/**"
+      - "views/**"
+      - "public/**"
+      - ".github/workflows/ci-cd-ecs.yml"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "ECR image tag (optional, default: sha-<12>)"
+        required: false
+        type: string
+      backend_ref:
+        description: "Backend git ref (optional, default: vars.BACKEND_REF or main)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION != '' && vars.AWS_REGION || 'ap-northeast-2' }}
+  BACKEND_REPO: ${{ vars.BACKEND_REPO != '' && vars.BACKEND_REPO || '80-hours-a-week/2-sungjin-community-be' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+
+    steps:
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Run frontend tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm test
+
+      - name: Resolve variables
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          else
+            IMAGE_TAG="sha-${GITHUB_SHA::12}"
+          fi
+
+          if [ -n "${{ github.event.inputs.backend_ref }}" ]; then
+            BACKEND_REF="${{ github.event.inputs.backend_ref }}"
+          elif [ -n "${{ vars.BACKEND_REF }}" ]; then
+            BACKEND_REF="${{ vars.BACKEND_REF }}"
+          else
+            BACKEND_REF="main"
+          fi
+
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            DEPLOY_TARGET="prod"
+          else
+            DEPLOY_TARGET="staging"
+          fi
+
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "backend_ref=$BACKEND_REF" >> "$GITHUB_OUTPUT"
+          echo "deploy_target=$DEPLOY_TARGET" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve ECS deployment configuration
+        id: deploy-config
+        shell: bash
+        env:
+          DEPLOY_TARGET: ${{ steps.vars.outputs.deploy_target }}
+          COMMON_AWS_REGION: ${{ vars.AWS_REGION }}
+          STAGING_AWS_REGION: ${{ vars.STAGING_AWS_REGION }}
+          PROD_AWS_REGION: ${{ vars.PROD_AWS_REGION }}
+          COMMON_ECR_FRONTEND_REPOSITORY: ${{ vars.ECR_FRONTEND_REPOSITORY }}
+          STAGING_ECR_FRONTEND_REPOSITORY: ${{ vars.STAGING_ECR_FRONTEND_REPOSITORY }}
+          PROD_ECR_FRONTEND_REPOSITORY: ${{ vars.PROD_ECR_FRONTEND_REPOSITORY }}
+          COMMON_ECR_BACKEND_REPOSITORY: ${{ vars.ECR_BACKEND_REPOSITORY }}
+          STAGING_ECR_BACKEND_REPOSITORY: ${{ vars.STAGING_ECR_BACKEND_REPOSITORY }}
+          PROD_ECR_BACKEND_REPOSITORY: ${{ vars.PROD_ECR_BACKEND_REPOSITORY }}
+          COMMON_ECS_CLUSTER_NAME: ${{ vars.ECS_CLUSTER_NAME }}
+          STAGING_ECS_CLUSTER_NAME: ${{ vars.STAGING_ECS_CLUSTER_NAME }}
+          PROD_ECS_CLUSTER_NAME: ${{ vars.PROD_ECS_CLUSTER_NAME }}
+          COMMON_ECS_FRONTEND_SERVICE: ${{ vars.ECS_FRONTEND_SERVICE }}
+          STAGING_ECS_FRONTEND_SERVICE: ${{ vars.STAGING_ECS_FRONTEND_SERVICE }}
+          PROD_ECS_FRONTEND_SERVICE: ${{ vars.PROD_ECS_FRONTEND_SERVICE }}
+          COMMON_ECS_BACKEND_SERVICE: ${{ vars.ECS_BACKEND_SERVICE }}
+          STAGING_ECS_BACKEND_SERVICE: ${{ vars.STAGING_ECS_BACKEND_SERVICE }}
+          PROD_ECS_BACKEND_SERVICE: ${{ vars.PROD_ECS_BACKEND_SERVICE }}
+          COMMON_ECS_FRONTEND_TASK_FAMILY: ${{ vars.ECS_FRONTEND_TASK_FAMILY }}
+          STAGING_ECS_FRONTEND_TASK_FAMILY: ${{ vars.STAGING_ECS_FRONTEND_TASK_FAMILY }}
+          PROD_ECS_FRONTEND_TASK_FAMILY: ${{ vars.PROD_ECS_FRONTEND_TASK_FAMILY }}
+          COMMON_ECS_BACKEND_TASK_FAMILY: ${{ vars.ECS_BACKEND_TASK_FAMILY }}
+          STAGING_ECS_BACKEND_TASK_FAMILY: ${{ vars.STAGING_ECS_BACKEND_TASK_FAMILY }}
+          PROD_ECS_BACKEND_TASK_FAMILY: ${{ vars.PROD_ECS_BACKEND_TASK_FAMILY }}
+          COMMON_ECS_FRONTEND_CONTAINER_NAME: ${{ vars.ECS_FRONTEND_CONTAINER_NAME }}
+          STAGING_ECS_FRONTEND_CONTAINER_NAME: ${{ vars.STAGING_ECS_FRONTEND_CONTAINER_NAME }}
+          PROD_ECS_FRONTEND_CONTAINER_NAME: ${{ vars.PROD_ECS_FRONTEND_CONTAINER_NAME }}
+          COMMON_ECS_BACKEND_CONTAINER_NAME: ${{ vars.ECS_BACKEND_CONTAINER_NAME }}
+          STAGING_ECS_BACKEND_CONTAINER_NAME: ${{ vars.STAGING_ECS_BACKEND_CONTAINER_NAME }}
+          PROD_ECS_BACKEND_CONTAINER_NAME: ${{ vars.PROD_ECS_BACKEND_CONTAINER_NAME }}
+        run: |
+          set -euo pipefail
+
+          pick() {
+            local target="$1"
+            local staging_value="$2"
+            local prod_value="$3"
+            local common_value="$4"
+            local default_value="$5"
+
+            local selected=""
+            if [ "$target" = "prod" ]; then
+              selected="$prod_value"
+            else
+              selected="$staging_value"
+            fi
+
+            if [ -z "$selected" ]; then
+              selected="$common_value"
+            fi
+            if [ -z "$selected" ]; then
+              selected="$default_value"
+            fi
+            echo "$selected"
+          }
+
+          AWS_REGION_VALUE="$(pick "$DEPLOY_TARGET" "$STAGING_AWS_REGION" "$PROD_AWS_REGION" "$COMMON_AWS_REGION" "ap-northeast-2")"
+          ECR_FRONTEND_REPOSITORY_VALUE="$(pick "$DEPLOY_TARGET" "$STAGING_ECR_FRONTEND_REPOSITORY" "$PROD_ECR_FRONTEND_REPOSITORY" "$COMMON_ECR_FRONTEND_REPOSITORY" "")"
+          ECR_BACKEND_REPOSITORY_VALUE="$(pick "$DEPLOY_TARGET" "$STAGING_ECR_BACKEND_REPOSITORY" "$PROD_ECR_BACKEND_REPOSITORY" "$COMMON_ECR_BACKEND_REPOSITORY" "")"
+          ECS_CLUSTER_NAME_VALUE="$(pick "$DEPLOY_TARGET" "$STAGING_ECS_CLUSTER_NAME" "$PROD_ECS_CLUSTER_NAME" "$COMMON_ECS_CLUSTER_NAME" "")"
+          ECS_FRONTEND_SERVICE_VALUE="$(pick "$DEPLOY_TARGET" "$STAGING_ECS_FRONTEND_SERVICE" "$PROD_ECS_FRONTEND_SERVICE" "$COMMON_ECS_FRONTEND_SERVICE" "")"
+          ECS_BACKEND_SERVICE_VALUE="$(pick "$DEPLOY_TARGET" "$STAGING_ECS_BACKEND_SERVICE" "$PROD_ECS_BACKEND_SERVICE" "$COMMON_ECS_BACKEND_SERVICE" "")"
+          ECS_FRONTEND_TASK_FAMILY_VALUE="$(pick "$DEPLOY_TARGET" "$STAGING_ECS_FRONTEND_TASK_FAMILY" "$PROD_ECS_FRONTEND_TASK_FAMILY" "$COMMON_ECS_FRONTEND_TASK_FAMILY" "")"
+          ECS_BACKEND_TASK_FAMILY_VALUE="$(pick "$DEPLOY_TARGET" "$STAGING_ECS_BACKEND_TASK_FAMILY" "$PROD_ECS_BACKEND_TASK_FAMILY" "$COMMON_ECS_BACKEND_TASK_FAMILY" "")"
+          ECS_FRONTEND_CONTAINER_NAME_VALUE="$(pick "$DEPLOY_TARGET" "$STAGING_ECS_FRONTEND_CONTAINER_NAME" "$PROD_ECS_FRONTEND_CONTAINER_NAME" "$COMMON_ECS_FRONTEND_CONTAINER_NAME" "community-frontend")"
+          ECS_BACKEND_CONTAINER_NAME_VALUE="$(pick "$DEPLOY_TARGET" "$STAGING_ECS_BACKEND_CONTAINER_NAME" "$PROD_ECS_BACKEND_CONTAINER_NAME" "$COMMON_ECS_BACKEND_CONTAINER_NAME" "community-backend")"
+
+          for required in \
+            ECR_FRONTEND_REPOSITORY_VALUE \
+            ECR_BACKEND_REPOSITORY_VALUE \
+            ECS_CLUSTER_NAME_VALUE \
+            ECS_FRONTEND_SERVICE_VALUE \
+            ECS_BACKEND_SERVICE_VALUE \
+            ECS_FRONTEND_TASK_FAMILY_VALUE \
+            ECS_BACKEND_TASK_FAMILY_VALUE
+          do
+            if [ -z "${!required}" ]; then
+              echo "::error::Missing ECS configuration: $required"
+              exit 1
+            fi
+          done
+
+          echo "aws_region=$AWS_REGION_VALUE" >> "$GITHUB_OUTPUT"
+          echo "ecr_frontend_repository=$ECR_FRONTEND_REPOSITORY_VALUE" >> "$GITHUB_OUTPUT"
+          echo "ecr_backend_repository=$ECR_BACKEND_REPOSITORY_VALUE" >> "$GITHUB_OUTPUT"
+          echo "ecs_cluster_name=$ECS_CLUSTER_NAME_VALUE" >> "$GITHUB_OUTPUT"
+          echo "ecs_frontend_service=$ECS_FRONTEND_SERVICE_VALUE" >> "$GITHUB_OUTPUT"
+          echo "ecs_backend_service=$ECS_BACKEND_SERVICE_VALUE" >> "$GITHUB_OUTPUT"
+          echo "ecs_frontend_task_family=$ECS_FRONTEND_TASK_FAMILY_VALUE" >> "$GITHUB_OUTPUT"
+          echo "ecs_backend_task_family=$ECS_BACKEND_TASK_FAMILY_VALUE" >> "$GITHUB_OUTPUT"
+          echo "ecs_frontend_container_name=$ECS_FRONTEND_CONTAINER_NAME_VALUE" >> "$GITHUB_OUTPUT"
+          echo "ecs_backend_container_name=$ECS_BACKEND_CONTAINER_NAME_VALUE" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout backend
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.BACKEND_REPO }}
+          ref: ${{ steps.vars.outputs.backend_ref }}
+          path: backend
+          token: ${{ secrets.BACKEND_REPO_TOKEN != '' && secrets.BACKEND_REPO_TOKEN || github.token }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ steps.vars.outputs.deploy_target == 'prod' && (secrets.PROD_AWS_ACCESS_KEY_ID != '' && secrets.PROD_AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID) || (secrets.STAGING_AWS_ACCESS_KEY_ID != '' && secrets.STAGING_AWS_ACCESS_KEY_ID || secrets.AWS_ACCESS_KEY_ID) }}
+          aws-secret-access-key: ${{ steps.vars.outputs.deploy_target == 'prod' && (secrets.PROD_AWS_SECRET_ACCESS_KEY != '' && secrets.PROD_AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY) || (secrets.STAGING_AWS_SECRET_ACCESS_KEY != '' && secrets.STAGING_AWS_SECRET_ACCESS_KEY || secrets.AWS_SECRET_ACCESS_KEY) }}
+          aws-region: ${{ steps.deploy-config.outputs.aws_region }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push frontend image (ECR)
+        id: build-frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ steps.deploy-config.outputs.ecr_frontend_repository }}:${{ steps.vars.outputs.image_tag }}
+
+      - name: Build and push backend image (ECR)
+        id: build-backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ steps.deploy-config.outputs.ecr_backend_repository }}:${{ steps.vars.outputs.image_tag }}
+
+      - name: Prepare backend task definition
+        shell: bash
+        env:
+          ECS_BACKEND_TASK_FAMILY: ${{ steps.deploy-config.outputs.ecs_backend_task_family }}
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_BACKEND_TASK_FAMILY" \
+            --query taskDefinition > backend-task-definition.json
+          jq 'del(.taskDefinitionArn,.requiresAttributes,.compatibilities,.revision,.status,.registeredAt,.registeredBy)' \
+            backend-task-definition.json > backend-task-definition-clean.json
+
+      - name: Render backend task definition
+        id: backend-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: backend-task-definition-clean.json
+          container-name: ${{ steps.deploy-config.outputs.ecs_backend_container_name }}
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ steps.deploy-config.outputs.ecr_backend_repository }}:${{ steps.vars.outputs.image_tag }}
+
+      - name: Deploy backend service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.backend-task-def.outputs.task-definition }}
+          service: ${{ steps.deploy-config.outputs.ecs_backend_service }}
+          cluster: ${{ steps.deploy-config.outputs.ecs_cluster_name }}
+          wait-for-service-stability: true
+
+      - name: Prepare frontend task definition
+        shell: bash
+        env:
+          ECS_FRONTEND_TASK_FAMILY: ${{ steps.deploy-config.outputs.ecs_frontend_task_family }}
+        run: |
+          set -euo pipefail
+          aws ecs describe-task-definition \
+            --task-definition "$ECS_FRONTEND_TASK_FAMILY" \
+            --query taskDefinition > frontend-task-definition.json
+          jq 'del(.taskDefinitionArn,.requiresAttributes,.compatibilities,.revision,.status,.registeredAt,.registeredBy)' \
+            frontend-task-definition.json > frontend-task-definition-clean.json
+
+      - name: Render frontend task definition
+        id: frontend-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: frontend-task-definition-clean.json
+          container-name: ${{ steps.deploy-config.outputs.ecs_frontend_container_name }}
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ steps.deploy-config.outputs.ecr_frontend_repository }}:${{ steps.vars.outputs.image_tag }}
+
+      - name: Deploy frontend service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.frontend-task-def.outputs.task-definition }}
+          service: ${{ steps.deploy-config.outputs.ecs_frontend_service }}
+          cluster: ${{ steps.deploy-config.outputs.ecs_cluster_name }}
+          wait-for-service-stability: true

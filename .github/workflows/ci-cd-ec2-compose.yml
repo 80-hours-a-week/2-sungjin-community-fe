@@ -1,4 +1,4 @@
-name: Deploy Compose On Self-Hosted EC2
+name: CI/CD To EC2 Compose
 
 on:
   push:
@@ -16,21 +16,21 @@ on:
       - "scripts/**"
       - "docker-compose.deploy.yml"
       - "docker-compose.reverse-proxy.deploy.yml"
-      - ".github/workflows/deploy-ec2-compose-self-hosted.yml"
+      - ".github/workflows/ci-cd-ec2-compose.yml"
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Docker image tag to deploy"
+        description: "Docker image tag (optional, default: sha-<12>)"
         required: false
-        type: string
-      compose_file:
-        description: "Compose file path"
-        required: false
-        default: docker-compose.deploy.yml
         type: string
       backend_ref:
         description: "Backend git ref (optional, default: vars.BACKEND_REF or main)"
         required: false
+        type: string
+      compose_file:
+        description: "Compose file for EC2 deploy"
+        required: false
+        default: "docker-compose.deploy.yml"
         type: string
 
 permissions:
@@ -44,8 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image_tag: ${{ steps.vars.outputs.image_tag }}
-      compose_file: ${{ steps.vars.outputs.compose_file }}
       backend_ref: ${{ steps.vars.outputs.backend_ref }}
+      compose_file: ${{ steps.vars.outputs.compose_file }}
       deploy_target: ${{ steps.vars.outputs.deploy_target }}
 
     steps:
@@ -65,7 +65,7 @@ jobs:
           npm ci
           npm test
 
-      - name: Resolve variables
+      - name: Resolve build variables
         id: vars
         shell: bash
         run: |
@@ -77,18 +77,18 @@ jobs:
             IMAGE_TAG="sha-${GITHUB_SHA::12}"
           fi
 
-          if [ -n "${{ github.event.inputs.compose_file }}" ]; then
-            COMPOSE_FILE="${{ github.event.inputs.compose_file }}"
-          else
-            COMPOSE_FILE="docker-compose.deploy.yml"
-          fi
-
           if [ -n "${{ github.event.inputs.backend_ref }}" ]; then
             BACKEND_REF="${{ github.event.inputs.backend_ref }}"
           elif [ -n "${{ vars.BACKEND_REF }}" ]; then
             BACKEND_REF="${{ vars.BACKEND_REF }}"
           else
             BACKEND_REF="main"
+          fi
+
+          if [ -n "${{ github.event.inputs.compose_file }}" ]; then
+            COMPOSE_FILE="${{ github.event.inputs.compose_file }}"
+          else
+            COMPOSE_FILE="docker-compose.deploy.yml"
           fi
 
           if [ "${GITHUB_REF_NAME}" = "main" ]; then
@@ -98,8 +98,8 @@ jobs:
           fi
 
           echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
-          echo "compose_file=$COMPOSE_FILE" >> "$GITHUB_OUTPUT"
           echo "backend_ref=$BACKEND_REF" >> "$GITHUB_OUTPUT"
+          echo "compose_file=$COMPOSE_FILE" >> "$GITHUB_OUTPUT"
           echo "deploy_target=$DEPLOY_TARGET" >> "$GITHUB_OUTPUT"
 
       - name: Checkout backend
@@ -139,8 +139,8 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USER }}/community-backend:${{ steps.vars.outputs.image_tag }}
 
-  deploy_staging:
-    runs-on: [self-hosted, linux, x64, ec2]
+  deploy_to_ec2_staging:
+    runs-on: ubuntu-latest
     needs: build_and_push
     if: needs.build_and_push.outputs.deploy_target == 'staging'
     environment: staging
@@ -149,33 +149,33 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify docker runtime
+      - name: Prepare SSH key
+        shell: bash
+        env:
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.STAGING_EC2_SSH_PRIVATE_KEY != '' && secrets.STAGING_EC2_SSH_PRIVATE_KEY || secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          docker --version
-          docker compose version
+          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > ec2_key.pem
+          chmod 600 ec2_key.pem
 
-      - name: Deploy staging with local docker compose
+      - name: Deploy to Staging EC2 with docker compose
+        shell: bash
         env:
+          EC2_HOST: ${{ secrets.STAGING_EC2_HOST != '' && secrets.STAGING_EC2_HOST || secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.STAGING_EC2_USER != '' && secrets.STAGING_EC2_USER || secrets.EC2_USER }}
           DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
-          TAG: ${{ needs.build_and_push.outputs.image_tag }}
+          IMAGE_TAG: ${{ needs.build_and_push.outputs.image_tag }}
           COMPOSE_FILE: ${{ vars.STAGING_COMPOSE_FILE != '' && vars.STAGING_COMPOSE_FILE || needs.build_and_push.outputs.compose_file }}
           API_URL: ${{ vars.STAGING_API_URL != '' && vars.STAGING_API_URL || vars.API_URL }}
           FILE_UPLOAD_API_URL: ${{ vars.STAGING_FILE_UPLOAD_API_URL != '' && vars.STAGING_FILE_UPLOAD_API_URL || vars.FILE_UPLOAD_API_URL }}
-          COMPOSE_PROJECT_NAME: community-staging
         run: |
           set -euo pipefail
-          DOCKERHUB_USER="$DOCKERHUB_USER" TAG="$TAG" API_URL="$API_URL" FILE_UPLOAD_API_URL="$FILE_UPLOAD_API_URL" \
-            docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" down --remove-orphans || true
-          DOCKERHUB_USER="$DOCKERHUB_USER" TAG="$TAG" API_URL="$API_URL" FILE_UPLOAD_API_URL="$FILE_UPLOAD_API_URL" \
-            docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" pull
-          DOCKERHUB_USER="$DOCKERHUB_USER" TAG="$TAG" API_URL="$API_URL" FILE_UPLOAD_API_URL="$FILE_UPLOAD_API_URL" \
-            docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d
-          DOCKERHUB_USER="$DOCKERHUB_USER" TAG="$TAG" API_URL="$API_URL" FILE_UPLOAD_API_URL="$FILE_UPLOAD_API_URL" \
-            docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" ps
+          chmod +x ./scripts/ec2-compose-deploy.sh
+          COMPOSE_FILE="$COMPOSE_FILE" API_URL="$API_URL" FILE_UPLOAD_API_URL="$FILE_UPLOAD_API_URL" \
+            ./scripts/ec2-compose-deploy.sh "$EC2_HOST" "$EC2_USER" "$DOCKERHUB_USER" "$IMAGE_TAG" ./ec2_key.pem
 
-  deploy_prod:
-    runs-on: [self-hosted, linux, x64, ec2]
+  deploy_to_ec2_prod:
+    runs-on: ubuntu-latest
     needs: build_and_push
     if: needs.build_and_push.outputs.deploy_target == 'prod'
     environment: production
@@ -184,27 +184,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify docker runtime
+      - name: Prepare SSH key
+        shell: bash
+        env:
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.PROD_EC2_SSH_PRIVATE_KEY != '' && secrets.PROD_EC2_SSH_PRIVATE_KEY || secrets.EC2_SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
-          docker --version
-          docker compose version
+          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > ec2_key.pem
+          chmod 600 ec2_key.pem
 
-      - name: Deploy production with local docker compose
+      - name: Deploy to Production EC2 with docker compose
+        shell: bash
         env:
+          EC2_HOST: ${{ secrets.PROD_EC2_HOST != '' && secrets.PROD_EC2_HOST || secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.PROD_EC2_USER != '' && secrets.PROD_EC2_USER || secrets.EC2_USER }}
           DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
-          TAG: ${{ needs.build_and_push.outputs.image_tag }}
+          IMAGE_TAG: ${{ needs.build_and_push.outputs.image_tag }}
           COMPOSE_FILE: ${{ vars.PROD_COMPOSE_FILE != '' && vars.PROD_COMPOSE_FILE || needs.build_and_push.outputs.compose_file }}
           API_URL: ${{ vars.PROD_API_URL != '' && vars.PROD_API_URL || vars.API_URL }}
           FILE_UPLOAD_API_URL: ${{ vars.PROD_FILE_UPLOAD_API_URL != '' && vars.PROD_FILE_UPLOAD_API_URL || vars.FILE_UPLOAD_API_URL }}
-          COMPOSE_PROJECT_NAME: community-prod
         run: |
           set -euo pipefail
-          DOCKERHUB_USER="$DOCKERHUB_USER" TAG="$TAG" API_URL="$API_URL" FILE_UPLOAD_API_URL="$FILE_UPLOAD_API_URL" \
-            docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" down --remove-orphans || true
-          DOCKERHUB_USER="$DOCKERHUB_USER" TAG="$TAG" API_URL="$API_URL" FILE_UPLOAD_API_URL="$FILE_UPLOAD_API_URL" \
-            docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" pull
-          DOCKERHUB_USER="$DOCKERHUB_USER" TAG="$TAG" API_URL="$API_URL" FILE_UPLOAD_API_URL="$FILE_UPLOAD_API_URL" \
-            docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d
-          DOCKERHUB_USER="$DOCKERHUB_USER" TAG="$TAG" API_URL="$API_URL" FILE_UPLOAD_API_URL="$FILE_UPLOAD_API_URL" \
-            docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" ps
+          chmod +x ./scripts/ec2-compose-deploy.sh
+          COMPOSE_FILE="$COMPOSE_FILE" API_URL="$API_URL" FILE_UPLOAD_API_URL="$FILE_UPLOAD_API_URL" \
+            ./scripts/ec2-compose-deploy.sh "$EC2_HOST" "$EC2_USER" "$DOCKERHUB_USER" "$IMAGE_TAG" ./ec2_key.pem
