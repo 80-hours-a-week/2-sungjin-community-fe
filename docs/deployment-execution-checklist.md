@@ -1,116 +1,137 @@
 # 배포 실행 체크리스트
 
-기준일: 2026-03-09
+기준일: 2026-03-10
 
-## 1. 현재 상태 요약
+## 1. 현재 완료 상태
 
 - 완료:
-  - FE `Dockerfile`, `.dockerignore` 작성됨
-  - BE `Dockerfile`, `.dockerignore`, `Dockerfile.lambda` 작성됨
-  - FE/BE 동시 실행용 Compose 작성됨
-  - `nginx + mysql + fe + be` 과제형 Compose 작성됨
-  - EC2 Compose, ECS, K8s, FE Blue/Green GitHub Actions 작성됨
-  - FE 테스트 통과 (`7/7`)
-  - Compose 파일 문법 검증 통과
-- 미완료:
-  - 새 워크플로우/문서가 아직 로컬 변경분 상태
-  - GitHub Secrets/Variables 미입력
-  - BE 테스트 로컬 실패 (`readonly database`)
-  - Lambda/BE Blue-Green/ECS는 BE 저장소 기준 별도 설정 필요
+  - FE `Dockerfile`, `.dockerignore` 작성 및 DockerHub push 자동화
+  - BE `Dockerfile`, `.dockerignore`, `Dockerfile.lambda` 작성
+  - `mysql + nginx + fe + be` compose 배포 자동화
+  - staging EC2 배포 성공
+  - production EC2 배포 성공
+  - production ECS 배포 성공
+  - FE blue/green staging/prod 배포 성공
+  - FE 테스트 통과
+- 아직 남음:
+  - K8s secrets/vars 미입력
+  - K8s 배포 미실행
+  - self-hosted runner 미구성
+  - 기존 구형 EC2 정리
+  - BE 저장소의 Lambda/BE blue-green 별도 마무리
 
-## 2. Codex가 확인한 것
+## 2. 현재 운영 인프라 기준
 
-- FE 테스트: `npm test -- --runInBand` 통과
-- Compose 파싱:
-  - `docker-compose.yml`
-  - `docker-compose.deploy.yml`
-  - `docker-compose.reverse-proxy.deploy.yml`
-- GitHub 원격 설정 현황:
-  - Repo secrets 있음: `DOCKERHUB_USER`, `EC2_HOST`, `EC2_USER`, `EC2_SSH_PRIVATE_KEY`
-  - Repo variables 없음
-  - `staging` environment secrets 없음
-  - `production` environment secrets 없음
+- staging:
+  - FE blue/green EC2: `43.203.254.53`
+  - BE compose EC2: `13.125.251.52`
+- production:
+  - FE blue/green EC2: `3.34.42.44`
+  - BE compose EC2: `15.164.170.95`
+- production ECS:
+  - cluster: `community-prod-cluster`
+  - frontend service: `community-prod-frontend-service`
+  - backend service: `community-prod-backend-service`
 
-## 3. 사용자 체크리스트
+## 3. Codex가 끝낸 것
 
-### 3-1. 코드 반영
+- `develop` 기준 staging 배포 성공
+  - `CI/CD To EC2 Compose`
+  - `Deploy Frontend Blue Green To EC2`
+- `main` 기준 production 배포 성공
+  - `CI/CD To EC2 Compose`
+  - `Deploy Frontend Blue Green To EC2`
+  - `CI/CD To ECS`
+- 내부 health 확인 완료
+  - staging FE host `/health`
+  - staging FE host `/api/health`
+  - production FE host `/health`
+  - production FE host `/api/health`
+  - production BE host `:8080/api/health`
 
-- [ ] FE 저장소 로컬 변경분을 commit/push 한다.
-- [ ] `develop` 브랜치에 새 워크플로우가 올라간 것을 GitHub에서 확인한다.
+## 4. 지금 사용자님이 해야 하는 일
 
-관련 파일:
-- [ci-cd-ec2-compose.yml](/Users/sungjin/dev/personal/2-sungjin-community-fe/.github/workflows/ci-cd-ec2-compose.yml)
-- [ci-cd-ecs.yml](/Users/sungjin/dev/personal/2-sungjin-community-fe/.github/workflows/ci-cd-ecs.yml)
-- [deploy-k8s-fe-be.yml](/Users/sungjin/dev/personal/2-sungjin-community-fe/.github/workflows/deploy-k8s-fe-be.yml)
-- [deploy-fe-blue-green.yml](/Users/sungjin/dev/personal/2-sungjin-community-fe/.github/workflows/deploy-fe-blue-green.yml)
+### 4-1. 브라우저로 최종 확인
 
-### 3-2. GitHub Actions 설정값 입력
+- [ ] staging 접속 확인: `http://43.203.254.53`
+- [ ] production 접속 확인: `http://3.34.42.44`
+- [ ] 로그인, 게시글 목록, 게시글 상세, 업로드까지 한 번씩 수동 확인
 
-- [ ] Repo secret `DOCKERHUB_PAT` 입력
-- [ ] Repo secrets `STAGING_AWS_*`, `PROD_AWS_*` 입력
-- [ ] Repo variables `STAGING_*`, `PROD_*`, `K8S_*`, `BACKEND_*` 입력
-- [ ] `staging` environment secrets 입력
-- [ ] `production` environment secrets 입력
+### 4-2. 구형 EC2 정리
 
-참고 문서:
-- [github-actions-secrets-vars-template.md](/Users/sungjin/dev/personal/2-sungjin-community-fe/docs/github-actions-secrets-vars-template.md)
+- [ ] old staging BE 인스턴스 `i-035a919987aa159d8` 중지 또는 종료
+- [ ] old production FE 인스턴스 `i-0c3f4c6eecd8d61bd` 중지 또는 종료
+- [ ] old production BE 인스턴스 `i-0984b493881d8275b` 중지 또는 종료
 
-자동 점검:
+권장:
+- 먼저 `중지`
+- 하루 정도 문제 없으면 `종료`
+
+### 4-3. 임시 보안그룹 규칙 정리
+
+- [ ] `SSH 22 / 0.0.0.0/0` 임시 허용 삭제
+- [ ] `BE 8080 / 0.0.0.0/0` 임시 허용 삭제
+
+참고:
+- production FE는 private backend IP를 향하도록 설정했기 때문에 prod의 `8080 공개`는 유지할 이유가 없습니다.
+
+### 4-4. K8s 배포 준비
+
+- [ ] `KUBE_CONFIG_DATA_STAGING` 입력
+- [ ] `KUBE_CONFIG_DATA_PROD` 입력
+- [ ] `K8S_DATABASE_URL_STAGING` 입력
+- [ ] `K8S_DATABASE_URL_PROD` 입력
+- [ ] `K8S_CORS_ALLOW_ORIGINS_STAGING` 입력
+- [ ] `K8S_CORS_ALLOW_ORIGINS_PROD` 입력
+
+점검 명령:
 
 ```bash
 ./scripts/check-github-actions-config.sh
 ```
 
-### 3-3. 인프라 준비
+### 4-5. self-hosted runner가 정말 필요한지 결정
 
-- [ ] EC2 staging/prod 인스턴스 접속 정보 확보
-- [ ] ECS staging/prod 클러스터, 서비스, task family 이름 확보
-- [ ] K8s staging/prod kubeconfig 확보
-- [ ] Blue/Green용 FE 대상 EC2 정보 확보
-- [ ] Lambda용 AWS 권한과 함수 정보 준비
+- [ ] 필요 없으면 현 상태 유지
+- [ ] 필요하면 GitHub self-hosted runner를 별도 설치
 
-### 3-4. 테스트/검증
+현재 조치:
+- [deploy-ec2-compose-self-hosted.yml](/Users/sungjin/dev/personal/2-sungjin-community-fe/.github/workflows/deploy-ec2-compose-self-hosted.yml)는 `workflow_dispatch` 수동 실행 전용으로 바꿨습니다.
 
-- [ ] BE 테스트 환경 수정 후 백엔드 테스트를 다시 통과시킨다.
-- [ ] 필요 시 로컬에서 reverse proxy compose를 실제로 띄워서 smoke test 한다.
-- [ ] `develop` push 후 staging 워크플로우 성공 확인
-- [ ] `main` push 후 production 워크플로우 성공 확인
-
-권장 실행:
-
-```bash
-docker compose -f docker-compose.reverse-proxy.deploy.yml up -d
-curl -i http://127.0.0.1:8080/api/health
-curl -i http://127.0.0.1:8080/
-docker compose -f docker-compose.reverse-proxy.deploy.yml down
-```
-
-### 3-5. BE 저장소 별도 작업
+### 4-6. BE 저장소 별도 작업
 
 - [ ] Lambda 배포용 BE 저장소 secrets 입력
-- [ ] ECS Fargate 배포용 BE 저장소 secrets/vars 입력
-- [ ] BE Blue/Green 대상 인프라와 시크릿 입력
+- [ ] BE blue/green용 별도 인프라/시크릿 입력
+- [ ] 필요하면 BE 저장소 워크플로우 수동 실행
 
 BE 저장소 참고:
 - [deploy-lambda-image.yml](/Users/sungjin/dev/personal/2-sungjin-community-be/.github/workflows/deploy-lambda-image.yml)
-- [deploy-ecs-fargate.yml](/Users/sungjin/dev/personal/2-sungjin-community-be/.github/workflows/deploy-ecs-fargate.yml)
 - [deploy-be-blue-green.yml](/Users/sungjin/dev/personal/2-sungjin-community-be/.github/workflows/deploy-be-blue-green.yml)
 
-## 4. 우선순위
+## 5. 남은 필수 설정값
 
-1. FE 저장소 변경분 push
-2. GitHub Secrets/Variables 입력
-3. staging 자동배포 확인
-4. production 자동배포 확인
-5. BE 저장소 Lambda/ECS/Blue-Green 마무리
+현재 누락:
 
-## 5. 완료 판정 기준
+- repo vars
+  - `K8S_DATABASE_URL_STAGING`
+  - `K8S_DATABASE_URL_PROD`
+  - `K8S_CORS_ALLOW_ORIGINS_STAGING`
+  - `K8S_CORS_ALLOW_ORIGINS_PROD`
+- environment secrets
+  - `KUBE_CONFIG_DATA_STAGING`
+  - `KUBE_CONFIG_DATA_PROD`
 
-아래가 모두 만족되면 이번 범위는 완료로 봐도 된다.
+참고 문서:
+- [github-actions-secrets-vars-template.md](/Users/sungjin/dev/personal/2-sungjin-community-fe/docs/github-actions-secrets-vars-template.md)
 
-- `develop` push 시 staging EC2/ECS/K8s 배포 성공
-- `main` push 시 production EC2/ECS/K8s 배포 성공
-- DockerHub에 FE/BE 이미지 태그 푸시 확인
-- 단일 EC2 compose에서 `mysql + nginx + fe + be` 기동 확인
-- FE/BE health check 정상
-- Lambda 이미지 배포 성공
+## 6. 완료 판정 기준
+
+이번 범위를 완료로 볼 수 있는 기준:
+
+- staging EC2 배포 성공
+- production EC2 배포 성공
+- production ECS 배포 성공
+- FE/BE health 정상
+- 브라우저 수동 점검 완료
+- 구형 EC2 및 임시 보안그룹 정리 완료
+- K8s 값 입력 후 K8s 배포 성공

@@ -1,22 +1,6 @@
 name: Deploy Compose On Self-Hosted EC2
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - "Dockerfile"
-      - "package.json"
-      - "package-lock.json"
-      - "server.js"
-      - "routes/**"
-      - "views/**"
-      - "public/**"
-      - "scripts/**"
-      - "docker-compose.deploy.yml"
-      - "docker-compose.reverse-proxy.deploy.yml"
-      - ".github/workflows/deploy-ec2-compose-self-hosted.yml"
   workflow_dispatch:
     inputs:
       image_tag:
