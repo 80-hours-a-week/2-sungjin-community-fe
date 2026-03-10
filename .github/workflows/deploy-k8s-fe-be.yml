@@ -134,8 +134,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Export AWS credentials for EKS auth
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID_VALUE: ${{ needs.build_and_push.outputs.deploy_target == 'prod' && secrets.PROD_AWS_ACCESS_KEY_ID || secrets.STAGING_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY_VALUE: ${{ needs.build_and_push.outputs.deploy_target == 'prod' && secrets.PROD_AWS_SECRET_ACCESS_KEY || secrets.STAGING_AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION_VALUE: ${{ needs.build_and_push.outputs.deploy_target == 'prod' && (vars.PROD_AWS_REGION != '' && vars.PROD_AWS_REGION || vars.AWS_REGION || 'ap-northeast-2') || (vars.STAGING_AWS_REGION != '' && vars.STAGING_AWS_REGION || vars.AWS_REGION || 'ap-northeast-2') }}
+        run: |
+          set -euo pipefail
+          {
+            echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID_VALUE"
+            echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY_VALUE"
+            echo "AWS_REGION=$AWS_REGION_VALUE"
+            echo "AWS_DEFAULT_REGION=$AWS_REGION_VALUE"
+          } >> "$GITHUB_ENV"
+
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
+
+      - name: Verify AWS identity for EKS auth
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity
 
       - name: Install envsubst
         shell: bash
