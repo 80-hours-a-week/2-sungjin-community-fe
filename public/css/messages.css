@@ -1,0 +1,242 @@
+.messages-main {
+    min-height: calc(100vh - var(--header-height));
+    padding: 32px 20px;
+}
+
+.messages-shell {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.messages-sidebar {
+    display: grid;
+    gap: 20px;
+}
+
+.messages-panel {
+    background: var(--color-bg-card);
+    backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--color-border);
+    border-radius: 24px;
+    box-shadow: var(--shadow-xl);
+}
+
+.panel-header,
+.chat-header {
+    padding: 20px 22px 16px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.panel-header h2,
+.chat-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text-main);
+}
+
+.panel-header p,
+.chat-meta,
+.conversation-preview,
+.message-time,
+.message-helper,
+.search-user-email {
+    color: var(--color-text-sub);
+    font-size: 13px;
+}
+
+.search-bar {
+    display: flex;
+    gap: 10px;
+    padding: 18px 22px 10px;
+}
+
+.search-input,
+.message-input {
+    width: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.18);
+    color: var(--color-text-main);
+    padding: 14px 16px;
+    font-size: 14px;
+}
+
+.search-input:focus,
+.message-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+}
+
+.action-button {
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 18px;
+    min-height: 48px;
+}
+
+.action-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.search-results,
+.conversation-list {
+    padding: 0 12px 14px;
+}
+
+.search-user-item,
+.conversation-item {
+    width: 100%;
+    text-align: left;
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 18px;
+    padding: 12px 10px;
+    cursor: pointer;
+    color: inherit;
+}
+
+.search-user-item:hover,
+.conversation-item:hover,
+.conversation-item.active {
+    background: rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.28);
+}
+
+.search-user-avatar,
+.conversation-avatar,
+.chat-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--color-border);
+}
+
+.search-user-name,
+.conversation-name {
+    font-weight: 700;
+    color: var(--color-text-main);
+}
+
+.conversation-unread {
+    min-width: 26px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.messages-content {
+    min-height: 720px;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.chat-partner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.message-list {
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 540px;
+    overflow-y: auto;
+}
+
+.message-bubble {
+    max-width: min(78%, 520px);
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid var(--color-border);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.message-bubble.mine {
+    align-self: flex-end;
+    background: rgba(139, 92, 246, 0.2);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.message-bubble.theirs {
+    align-self: flex-start;
+}
+
+.message-content {
+    color: var(--color-text-main);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.message-time {
+    margin-top: 8px;
+}
+
+.message-form {
+    border-top: 1px solid var(--color-border);
+    padding: 18px 22px 22px;
+    display: grid;
+    gap: 12px;
+}
+
+.message-form-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+}
+
+.empty-state,
+.loading {
+    color: var(--color-text-sub);
+    padding: 18px 12px;
+    text-align: center;
+}
+
+.message-author-button {
+    margin-top: 10px;
+    border: 1px solid var(--color-border);
+    background: rgba(139, 92, 246, 0.12);
+    color: var(--color-text-main);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.message-author-button:hover {
+    border-color: rgba(139, 92, 246, 0.4);
+}
+
+@media (max-width: 960px) {
+    .messages-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .messages-content {
+        min-height: 600px;
+    }
+}

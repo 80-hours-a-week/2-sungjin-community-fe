@@ -92,6 +92,9 @@ async function loadHeaderProfile() {
     try {
         const response = await getMe();
         const user = response && response.data ? response.data : response;
+        if (typeof setCurrentUser === 'function') {
+            setCurrentUser(user);
+        }
         const headerImage = document.getElementById('headerProfileImage');
 
         if (!headerImage) return;
@@ -146,6 +149,19 @@ async function loadPostDetail() {
         const postActions = document.getElementById('postActions');
         if (post.is_author && postActions) {
             postActions.style.display = 'flex';
+        }
+
+        const btnMessageAuthor = document.getElementById('btnMessageAuthor');
+        const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+        if (
+            btnMessageAuthor &&
+            post.user_id &&
+            (!currentUser || Number(currentUser.id) !== Number(post.user_id))
+        ) {
+            btnMessageAuthor.style.display = 'inline-flex';
+            btnMessageAuthor.addEventListener('click', () => {
+                navigateTo(`/messages?userId=${post.user_id}`);
+            });
         }
     } catch (error) {
         handleApiError(error, {

@@ -15,7 +15,7 @@ This frontend repository covers the following responsibilities:
 
 | Area | Scope |
 | --- | --- |
-| Web Client | Authentication UI, posts feed, post detail/write/edit, comments, mypage, profile image UX |
+| Web Client | Authentication UI, posts feed, post detail/write/edit, comments, profile management, 1:1 direct message UX |
 | Frontend Server | Express-based static serving, runtime config injection, health endpoint |
 | Quality | Unit tests, API smoke tests, upload path verification |
 | Delivery | Docker image build, Docker Hub push, EC2 compose deployment, ECS image delivery, Kubernetes manifest rendering |
@@ -86,6 +86,7 @@ This project intentionally keeps a lightweight Node/Express layer so the fronten
 - posts list with pagination
 - post detail, write, edit, delete
 - comments CRUD
+- 1:1 direct message list, thread, and send flow
 - likes toggle
 - mypage, nickname/password update, account deletion
 
