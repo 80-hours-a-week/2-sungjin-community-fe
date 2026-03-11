@@ -1,0 +1,348 @@
+(function initMessagesPage(globalScope) {
+    'use strict';
+
+    const state = {
+        me: null,
+        selectedUser: null,
+        conversations: [],
+        messages: [],
+        searchResults: []
+    };
+
+    function safeEscape(value) {
+        if (typeof escapeHtml === 'function') {
+            return escapeHtml(value);
+        }
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function safeTruncate(value, maxLength) {
+        if (typeof truncateText === 'function') {
+            return truncateText(value, maxLength);
+        }
+        const normalized = String(value || '');
+        if (normalized.length <= maxLength) return normalized;
+        return `${normalized.slice(0, maxLength)}...`;
+    }
+
+    function safeFormatDate(value) {
+        if (typeof formatDate === 'function') {
+            return formatDate(value);
+        }
+        return String(value || '');
+    }
+
+    function resolveProfileImage(imageUrl) {
+        if (!imageUrl) return '/images/default-profile.png';
+        if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
+        return typeof toApiUrl === 'function' ? toApiUrl(imageUrl) : imageUrl;
+    }
+
+    function buildSearchUserItemHtml(user) {
+        return `
+            <img class="search-user-avatar" src="${safeEscape(resolveProfileImage(user.profile_image_url))}" alt="${safeEscape(user.nickname)}">
+            <div>
+                <div class="search-user-name">${safeEscape(user.nickname)}</div>
+                <div class="search-user-email">${safeEscape(user.email)}</div>
+            </div>
+            <span class="message-helper">대화 시작</span>
+        `;
+    }
+
+    function buildConversationItemHtml(conversation, activeUserId) {
+        const partner = conversation.partner;
+        const isActive = Number(activeUserId) === Number(partner.id);
+        const unread = Number(conversation.unread_count || 0);
+
+        return `
+            <button class="conversation-item${isActive ? ' active' : ''}" data-user-id="${partner.id}">
+                <img class="conversation-avatar" src="${safeEscape(resolveProfileImage(partner.profile_image_url))}" alt="${safeEscape(partner.nickname)}">
+                <div>
+                    <div class="conversation-name">${safeEscape(partner.nickname)}</div>
+                    <div class="conversation-preview">${safeEscape(safeTruncate((conversation.last_message && conversation.last_message.content) || '', 36))}</div>
+                </div>
+                ${unread > 0 ? `<span class="conversation-unread">${unread}</span>` : ''}
+            </button>
+        `;
+    }
+
+    function buildMessageBubbleHtml(message) {
+        const bubbleClass = message.is_mine ? 'mine' : 'theirs';
+        return `
+            <article class="message-bubble ${bubbleClass}">
+                <div class="message-content">${safeEscape(message.content || '')}</div>
+                <div class="message-time">${safeEscape(safeFormatDate(message.created_at || new Date().toISOString()))}</div>
+            </article>
+        `;
+    }
+
+    function setChatPartner(user) {
+        state.selectedUser = user || null;
+
+        const name = document.getElementById('chatPartnerName');
+        const meta = document.getElementById('chatPartnerMeta');
+        const image = document.getElementById('chatPartnerImage');
+        const input = document.getElementById('messageInput');
+        const button = document.getElementById('btnSendMessage');
+        const helper = document.getElementById('messageHelper');
+
+        if (!user) {
+            if (name) name.textContent = '대화 상대를 선택하세요';
+            if (meta) meta.textContent = '검색 또는 대화 목록에서 시작할 수 있습니다.';
+            if (image) image.src = '/images/default-profile.png';
+            if (input) {
+                input.disabled = true;
+                input.value = '';
+            }
+            if (button) button.disabled = true;
+            if (helper) helper.textContent = '대화 상대를 먼저 선택하세요.';
+            return;
+        }
+
+        if (name) name.textContent = user.nickname || '알 수 없음';
+        if (meta) meta.textContent = user.email || '';
+        if (image) image.src = resolveProfileImage(user.profile_image_url);
+        if (input) input.disabled = false;
+        if (button) button.disabled = false;
+        if (helper) helper.textContent = `${user.nickname}님에게 메시지를 보냅니다.`;
+    }
+
+    function renderSearchResults(users) {
+        const container = document.getElementById('searchResults');
+        if (!container) return;
+        state.searchResults = Array.isArray(users) ? users : [];
+
+        if (!state.searchResults.length) {
+            container.innerHTML = '<div class="empty-state">검색 결과가 없습니다.</div>';
+            return;
+        }
+
+        container.innerHTML = state.searchResults
+            .map((user) => `<button class="search-user-item" data-user-id="${user.id}">${buildSearchUserItemHtml(user)}</button>`)
+            .join('');
+    }
+
+    function renderConversations() {
+        const container = document.getElementById('conversationList');
+        if (!container) return;
+
+        if (!state.conversations.length) {
+            container.innerHTML = '<div class="empty-state">아직 시작한 대화가 없습니다.</div>';
+            return;
+        }
+
+        container.innerHTML = state.conversations
+            .map((conversation) => buildConversationItemHtml(conversation, state.selectedUser && state.selectedUser.id))
+            .join('');
+    }
+
+    function renderMessages() {
+        const container = document.getElementById('messageList');
+        if (!container) return;
+
+        if (!state.selectedUser) {
+            container.innerHTML = '<div class="empty-state">대화 상대를 선택하면 메시지가 표시됩니다.</div>';
+            return;
+        }
+
+        if (!state.messages.length) {
+            container.innerHTML = '<div class="empty-state">첫 메시지를 보내 대화를 시작하세요.</div>';
+            return;
+        }
+
+        container.innerHTML = state.messages.map(buildMessageBubbleHtml).join('');
+        container.scrollTop = container.scrollHeight;
+    }
+
+    async function loadHeaderProfile() {
+        const response = await getMe();
+        const user = response && response.data ? response.data : response;
+        state.me = user;
+
+        const headerImage = document.getElementById('headerProfileImage');
+        if (headerImage) {
+            headerImage.src = resolveProfileImage(user && user.profile_image_url);
+            headerImage.onerror = function onHeaderImageError() {
+                this.src = '/images/default-profile.png';
+            };
+        }
+    }
+
+    async function refreshConversations() {
+        const response = await getConversations();
+        state.conversations = response && response.data ? response.data : [];
+        renderConversations();
+    }
+
+    async function loadConversations(selectUserId = null) {
+        await refreshConversations();
+
+        if (selectUserId) {
+            const matched = state.conversations.find((item) => Number(item.partner.id) === Number(selectUserId));
+            if (matched) {
+                if (state.selectedUser && Number(state.selectedUser.id) === Number(selectUserId)) {
+                    setChatPartner(matched.partner);
+                    renderConversations();
+                    return;
+                }
+                await selectConversation(matched.partner);
+                return;
+            }
+        }
+
+        if (!state.selectedUser && state.conversations.length > 0) {
+            await selectConversation(state.conversations[0].partner);
+        }
+    }
+
+    async function selectConversation(user) {
+        setChatPartner(user);
+        renderConversations();
+
+        const response = await getMessagesWithUser(user.id);
+        state.messages = response && response.data ? response.data : [];
+        renderMessages();
+        await refreshConversations();
+        renderConversations();
+    }
+
+    async function handleSearch() {
+        const input = document.getElementById('userSearchInput');
+        const keyword = input ? input.value.trim() : '';
+        const response = await searchMessageUsers(keyword);
+        const users = response && response.data ? response.data : [];
+        renderSearchResults(users);
+    }
+
+    function bindDropdownMenu() {
+        const btnMenu = document.getElementById('btnMenu');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        if (!btnMenu || !dropdownMenu) return;
+
+        btnMenu.addEventListener('click', (event) => {
+            event.stopPropagation();
+            dropdownMenu.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => {
+            dropdownMenu.classList.remove('show');
+        });
+    }
+
+    function bindEvents() {
+        const searchButton = document.getElementById('btnUserSearch');
+        const searchInput = document.getElementById('userSearchInput');
+        const searchResults = document.getElementById('searchResults');
+        const conversationList = document.getElementById('conversationList');
+        const messageForm = document.getElementById('messageForm');
+        const messageInput = document.getElementById('messageInput');
+
+        if (searchButton) {
+            searchButton.addEventListener('click', async () => {
+                await handleSearch();
+            });
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('keydown', async (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                await handleSearch();
+            });
+        }
+
+        if (searchResults) {
+            searchResults.addEventListener('click', async (event) => {
+                const target = event.target.closest('[data-user-id]');
+                if (!target) return;
+                const userId = Number(target.dataset.userId);
+                const nextUser = state.searchResults.find((item) => Number(item.id) === userId);
+                if (!nextUser) return;
+                await selectConversation(nextUser);
+            });
+        }
+
+        if (conversationList) {
+            conversationList.addEventListener('click', async (event) => {
+                const target = event.target.closest('[data-user-id]');
+                if (!target) return;
+                const userId = Number(target.dataset.userId);
+                const conversation = state.conversations.find((item) => Number(item.partner.id) === userId);
+                if (!conversation) return;
+                await selectConversation(conversation.partner);
+            });
+        }
+
+        if (messageForm && messageInput) {
+            messageForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+
+                if (!state.selectedUser) {
+                    showToast('대화 상대를 먼저 선택해 주세요.');
+                    return;
+                }
+
+                const content = messageInput.value.trim();
+                if (!content) {
+                    showToast('메시지를 입력해 주세요.');
+                    return;
+                }
+
+                try {
+                    await sendDirectMessage(state.selectedUser.id, content);
+                    messageInput.value = '';
+                    await selectConversation(state.selectedUser);
+                } catch (error) {
+                    handleApiError(error, {
+                        fallbackMessage: '메시지 전송에 실패했습니다.'
+                    });
+                }
+            });
+        }
+    }
+
+    async function bootstrapMessagesPage() {
+        const isReady = await ensureAuthenticated();
+        if (!isReady) return;
+
+        bindDropdownMenu();
+        bindEvents();
+        await loadHeaderProfile();
+
+        const initialUserId = Number(getQueryParam('userId') || 0);
+        await loadConversations(initialUserId || null);
+        if (!state.selectedUser && initialUserId) {
+            const response = await searchMessageUsers('');
+            const users = response && response.data ? response.data : [];
+            const nextUser = users.find((item) => Number(item.id) === initialUserId);
+            if (nextUser) {
+                await selectConversation(nextUser);
+            }
+        }
+        if (!state.selectedUser) {
+            setChatPartner(null);
+            renderMessages();
+        }
+    }
+
+    if (typeof document !== 'undefined') {
+        document.addEventListener('DOMContentLoaded', bootstrapMessagesPage);
+    }
+
+    const publicApi = {
+        buildSearchUserItemHtml,
+        buildConversationItemHtml,
+        buildMessageBubbleHtml
+    };
+
+    Object.assign(globalScope, publicApi);
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = publicApi;
+    }
+})(typeof window !== 'undefined' ? window : globalThis);

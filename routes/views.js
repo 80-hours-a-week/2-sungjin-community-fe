@@ -11,6 +11,10 @@ router.get('/password/change', (req, res) => {
     sendView(res, 'password-change');
 });
 
+router.get('/messages', (req, res) => {
+    sendView(res, 'messages');
+});
+
 // 정책 페이지
 router.get('/terms', (req, res) => {
     sendView(res, 'terms');
