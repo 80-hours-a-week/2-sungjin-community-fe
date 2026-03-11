@@ -2,10 +2,23 @@
  * Signup page script
  */
 (function initSignupPage() {
+    const EMAIL_HELPER_STATE = Object.freeze({
+        default: {
+            text: '@를 포함한 이메일 형식으로 입력해 주세요.',
+            color: '#999'
+        },
+        available: {
+            text: '사용 가능한 이메일입니다.',
+            color: '#28a745'
+        }
+    });
+    const PROFILE_SYNC_FAILURE_MESSAGE = '회원가입은 완료되었지만 프로필 반영에 실패했습니다. 로그인 후 프로필을 다시 확인해 주세요.';
+
     let profileImageFile = null;
     let checkedEmail = '';
 
-    document.addEventListener('DOMContentLoaded', async () => {
+    if (typeof document !== 'undefined') {
+        document.addEventListener('DOMContentLoaded', async () => {
         const alreadySignedIn = await ensureAuthenticated({ redirect: false });
         if (alreadySignedIn) {
             navigateTo('/posts');
@@ -31,6 +44,7 @@
         const submitButton = form.querySelector('button[type="submit"]');
 
         submitButton.style.background = '#ACA0EB';
+        applyEmailHelperState(emailHelper, EMAIL_HELPER_STATE.default);
 
         if (profilePreview && profileInput) {
             profilePreview.addEventListener('click', () => {
@@ -98,16 +112,20 @@
                 try {
                     await checkEmail(email);
                     checkedEmail = email;
-                    emailHelper.textContent = '사용 가능한 이메일입니다.';
-                    emailHelper.style.color = '#28a745';
+                    hideFieldError(emailError);
+                    applyEmailHelperState(emailHelper, EMAIL_HELPER_STATE.available);
                 } catch (error) {
                     // If backend removed check-email endpoint, do not block signup.
                     if (Number(error.status) === 404) {
                         checkedEmail = email;
-                        emailHelper.textContent = '이메일 중복 확인 API를 지원하지 않아 가입 시 검증됩니다.';
-                        emailHelper.style.color = '#f59e0b';
+                        hideFieldError(emailError);
+                        applyEmailHelperState(emailHelper, {
+                            text: '이메일 중복 확인 API를 지원하지 않아 가입 시 검증됩니다.',
+                            color: '#f59e0b'
+                        });
                     } else {
                         checkedEmail = '';
+                        applyEmailHelperState(emailHelper, EMAIL_HELPER_STATE.default);
                         const resolved = resolveApiError(error, '중복된 이메일이거나 확인에 실패했습니다.');
                         showFieldError(emailError, resolved.message);
                     }
@@ -121,8 +139,7 @@
         emailInput.addEventListener('input', () => {
             if (checkedEmail !== emailInput.value.trim()) {
                 checkedEmail = '';
-                emailHelper.textContent = '@를 포함한 이메일 형식으로 입력해 주세요.';
-                emailHelper.style.color = '#999';
+                applyEmailHelperState(emailHelper, EMAIL_HELPER_STATE.default);
             }
             hideFieldError(emailError);
             validateAndUpdateButton();
@@ -180,20 +197,33 @@
             try {
                 await signup(email, password, nickname);
 
-                await login(email, password);
-                if (profileImageFile) {
-                    const uploadResult = await uploadImage(profileImageFile, 'profile');
-                    const imageUrl = uploadResult && uploadResult.data
-                        ? uploadResult.data.image_url
-                        : uploadResult.image_url;
-                    await updateProfile(nickname, imageUrl || null);
+                let profileSyncFailed = false;
+                try {
+                    await login(email, password);
+                    if (profileImageFile) {
+                        const uploadResult = await uploadImage(profileImageFile, 'profile');
+                        const imageUrl = uploadResult && uploadResult.data
+                            ? uploadResult.data.image_url
+                            : uploadResult.image_url;
+                        await updateProfile(nickname, imageUrl || null);
+                    }
+                } catch (profileSyncError) {
+                    profileSyncFailed = true;
+                } finally {
+                    await logout();
                 }
-                await logout();
 
+                if (profileSyncFailed) {
+                    showToast(PROFILE_SYNC_FAILURE_MESSAGE, 5000);
+                }
                 confirmModal.style.display = 'flex';
             } catch (error) {
                 const resolved = resolveApiError(error, '회원가입에 실패했습니다.');
                 if (resolved.message.includes('이메일')) {
+                    if (isEmailAlreadyExistsMessage(resolved.message)) {
+                        checkedEmail = '';
+                        applyEmailHelperState(emailHelper, EMAIL_HELPER_STATE.default);
+                    }
                     showFieldError(emailError, resolved.message);
                 } else if (resolved.message.includes('닉네임')) {
                     showFieldError(nicknameError, resolved.message);
@@ -233,7 +263,8 @@
                 isNicknameValid
             ) ? '#7F6AEE' : '#ACA0EB';
         }
-    });
+        });
+    }
 
     function validateSignupForm(payload) {
         const errors = {};
@@ -284,6 +315,16 @@
         );
     }
 
+    function applyEmailHelperState(element, state) {
+        if (!element || !state) return;
+        element.textContent = state.text;
+        element.style.color = state.color;
+    }
+
+    function isEmailAlreadyExistsMessage(message) {
+        return String(message || '').includes('이미 사용 중인 이메일');
+    }
+
     function showFieldError(element, message) {
         if (!element) return;
         element.textContent = message;
@@ -303,6 +344,13 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { validatePasswordComplex, validateSignupForm };
+        module.exports = {
+            validatePasswordComplex,
+            validateSignupForm,
+            applyEmailHelperState,
+            isEmailAlreadyExistsMessage,
+            EMAIL_HELPER_STATE,
+            PROFILE_SYNC_FAILURE_MESSAGE
+        };
     }
 })();
