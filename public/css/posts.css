@@ -460,9 +460,26 @@
 .post-meta {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     margin-bottom: 32px;
     padding-bottom: 32px;
     border-bottom: 1px solid var(--color-border);
+}
+
+.message-author-button {
+    border: 1px solid var(--color-border);
+    background: rgba(139, 92, 246, 0.12);
+    color: var(--color-text-main);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.message-author-button:hover {
+    border-color: rgba(139, 92, 246, 0.4);
+    background: rgba(139, 92, 246, 0.18);
 }
 
 .author-info {

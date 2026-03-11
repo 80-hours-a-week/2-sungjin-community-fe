@@ -48,7 +48,11 @@
         post_not_found: '게시글을 찾을 수 없습니다.',
         comment_not_found: '댓글을 찾을 수 없습니다.',
         user_not_found: '사용자 정보를 찾을 수 없습니다.',
-        image_upload_failed: '이미지 업로드에 실패했습니다.'
+        image_upload_failed: '이미지 업로드에 실패했습니다.',
+        message_sent: '메시지를 전송했습니다.',
+        read_conversations_success: '대화 목록을 불러왔습니다.',
+        read_messages_success: '메시지를 불러왔습니다.',
+        search_message_users_success: '사용자를 불러왔습니다.'
     });
 
     class ApiError extends Error {
@@ -671,6 +675,37 @@
     }
 
     // =========================
+    // Direct Messages API
+    // =========================
+
+    async function searchMessageUsers(query = '') {
+        const params = new URLSearchParams();
+        if (query && String(query).trim()) {
+            params.set('query', String(query).trim());
+        }
+        const suffix = params.toString() ? `?${params.toString()}` : '';
+        return request(`/messages/users${suffix}`);
+    }
+
+    async function getConversations() {
+        return request('/messages/conversations');
+    }
+
+    async function getMessagesWithUser(userId) {
+        return request(`/messages/with/${userId}`);
+    }
+
+    async function sendDirectMessage(recipientId, content) {
+        return request('/messages', {
+            method: 'POST',
+            body: {
+                recipient_id: recipientId,
+                content
+            }
+        });
+    }
+
+    // =========================
     // Images API
     // =========================
 
@@ -784,6 +819,10 @@
         updateProfile,
         changePassword,
         withdrawUser,
+        searchMessageUsers,
+        getConversations,
+        getMessagesWithUser,
+        sendDirectMessage,
         uploadImage,
         normalizeTags,
         toApiUrl,
