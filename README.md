@@ -237,6 +237,8 @@ Because this project is a portfolio artifact rather than a commercial service, A
 - Docker Compose deployment assets
 - runbooks and reliability documentation
 
+To prevent accidental re-provisioning, AWS deployment workflows in this repository are currently kept as `workflow_dispatch` only.
+
 ## 관련 문서 | Related Documents
 - [community-infra-reliability-report.md](docs/community-infra-reliability-report.md)
 - [deployment-execution-checklist.md](docs/deployment-execution-checklist.md)

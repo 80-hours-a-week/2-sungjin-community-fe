@@ -1,20 +1,6 @@
 name: Deploy Frontend Blue Green To EC2
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - "Dockerfile"
-      - "package.json"
-      - "package-lock.json"
-      - "server.js"
-      - "routes/**"
-      - "views/**"
-      - "public/**"
-      - "scripts/ec2-bluegreen-fe-deploy.sh"
-      - ".github/workflows/deploy-fe-blue-green.yml"
   workflow_dispatch:
     inputs:
       image_tag:

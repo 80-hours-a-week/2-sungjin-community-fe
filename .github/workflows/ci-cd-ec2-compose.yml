@@ -1,22 +1,6 @@
 name: CI/CD To EC2 Compose
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - "Dockerfile"
-      - "package.json"
-      - "package-lock.json"
-      - "server.js"
-      - "routes/**"
-      - "views/**"
-      - "public/**"
-      - "scripts/**"
-      - "docker-compose.deploy.yml"
-      - "docker-compose.reverse-proxy.deploy.yml"
-      - ".github/workflows/ci-cd-ec2-compose.yml"
   workflow_dispatch:
     inputs:
       image_tag:
