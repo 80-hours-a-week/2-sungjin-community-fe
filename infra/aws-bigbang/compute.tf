@@ -144,6 +144,34 @@ resource "aws_instance" "frontend" {
   }
 }
 
+resource "aws_instance" "runner" {
+  count                  = var.enable_self_hosted_runner ? 1 : 0
+  ami                    = data.aws_ami.amazon_linux.id
+  instance_type          = var.runner_instance_type
+  key_name               = var.key_pair_name
+  subnet_id              = aws_subnet.public[1].id
+  vpc_security_group_ids = [aws_security_group.runner_ec2[0].id]
+  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
+
+  user_data = templatefile("${path.module}/userdata/runner.sh.tftpl", {
+    frontend_repo_url    = var.frontend_repo_url
+    frontend_repo_branch = var.frontend_repo_branch
+    github_runner_org    = var.github_runner_org
+    github_runner_repo   = var.github_runner_repo
+    github_runner_version = var.github_runner_version
+    github_runner_token  = var.github_runner_token
+  })
+
+  tags = {
+    Name = "${local.name_prefix}-ec2-runner"
+    Role = "github-actions-runner"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
 resource "aws_eip" "frontend" {
   domain = "vpc"
 

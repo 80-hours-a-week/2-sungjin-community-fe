@@ -115,6 +115,20 @@ COMPOSE_FILE=docker-compose.reverse-proxy.deploy.yml \
 
 ## 6. Portainer + Private Registry 실행
 
+사전 준비:
+
+```bash
+cd /Users/sungjin/dev/personal/2-sungjin-community-fe
+./scripts/generate-portainer-self-signed-cert.sh <server-ip-or-domain>
+./scripts/generate-registry-htpasswd.sh <registry-user> <registry-password>
+```
+
+생성 결과:
+- Portainer HTTPS 인증서: `ops/portainer/certs/portainer.crt`, `ops/portainer/certs/portainer.key`
+- Registry 인증 파일: `ops/registry/auth/htpasswd`
+
+스택 실행:
+
 ```bash
 cd /Users/sungjin/dev/personal/2-sungjin-community-fe
 docker compose -f docker-compose.portainer-registry.yml up -d
@@ -122,7 +136,7 @@ docker compose -f docker-compose.portainer-registry.yml ps
 ```
 
 포트:
-- Portainer HTTPS: `9443`
+- Portainer HTTPS reverse proxy: `9443`
 - Private Registry: `5000`
 
 ## 7. Portainer HTTPS 검증
@@ -143,7 +157,10 @@ curl -kI https://127.0.0.1:9443
 2. `Add registry`
 3. Name: `community-private-registry`
 4. URL: `http://registry:5000` (Portainer와 같은 Docker 네트워크 기준)
-5. 저장 후 연결 확인
+5. Authentication:
+   - Username: `./scripts/generate-registry-htpasswd.sh` 실행 시 사용한 계정
+   - Password: 같은 명령에서 사용한 비밀번호
+6. 저장 후 연결 확인
 
 로컬에서 프라이빗 레지스트리 푸시 예시:
 
@@ -160,6 +177,7 @@ docker push localhost:5000/community-backend:miniquest-20260227-1
 참고:
 - Docker Engine이 `http://localhost:5000` 푸시를 차단하면 Docker 데몬에 `insecure-registries` 설정이 필요할 수 있습니다.
 - EC2에서는 `/etc/docker/daemon.json`에 `"insecure-registries": ["<registry-host>:5000"]` 추가 후 Docker 재시작으로 해결합니다.
+- Portainer 자체는 직접 `9443`으로 노출하지 않고, Nginx reverse proxy가 TLS 종단을 담당합니다.
 
 ## 9. 정리
 

@@ -32,3 +32,8 @@ output "efs_id" {
   description = "EFS filesystem ID"
   value       = aws_efs_file_system.shared.id
 }
+
+output "runner_public_ip" {
+  description = "Dedicated self-hosted runner public IP"
+  value       = var.enable_self_hosted_runner ? aws_instance.runner[0].public_ip : null
+}

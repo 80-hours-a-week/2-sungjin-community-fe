@@ -214,10 +214,12 @@ This frontend repository participated in validating the following delivery targe
 | FE/BE Docker image build | Done | Docker Hub + ECR workflows implemented |
 | Docker Compose on single EC2 | Done | FE/BE compose deployment validated |
 | Nginx reverse proxy + MySQL compose topology | Done | Deployment assets documented |
+| Portainer private registry | Done | Authenticated registry stack + Portainer HTTPS proxy assets included |
 | GitHub Actions -> EC2 | Done | staging / production branching applied |
 | GitHub Actions -> ECS | Done | task-definition-driven deployment validated |
 | GitHub Actions -> Kubernetes | Done (staging validation) | EKS staging deploy verified, then torn down |
 | Frontend Blue/Green deployment | Done | EC2-based blue/green workflow validated |
+| Dedicated self-hosted runner host | Done (bootstrap assets) | Separate EC2 runner Terraform/userdata assets included |
 
 ## Portfolio Evidence | 포트폴리오 관점의 Evidence
 This repository is suitable for portfolio review because it demonstrates:

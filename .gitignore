@@ -40,3 +40,6 @@ tfplan
 tfplan.*
 infra/aws-bigbang/lambda/*.zip
 ops/github-actions-input/
+ops/portainer/certs/*.crt
+ops/portainer/certs/*.key
+ops/registry/auth/htpasswd
