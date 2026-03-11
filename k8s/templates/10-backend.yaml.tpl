@@ -6,7 +6,7 @@ metadata:
   labels:
     app: community-backend
 spec:
-  replicas: 2
+  replicas: ${BACKEND_REPLICAS}
   selector:
     matchLabels:
       app: community-backend

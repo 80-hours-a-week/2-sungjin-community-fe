@@ -11,13 +11,13 @@
   - staging EC2 배포 성공
   - production EC2 배포 성공
   - production ECS 배포 성공
+  - staging K8s 배포 성공
   - FE blue/green staging/prod 배포 성공
   - FE 테스트 통과
 - 아직 남음:
-  - K8s secrets/vars 미입력
-  - K8s 배포 미실행
+  - production K8s 값 입력
+  - production K8s 배포
   - self-hosted runner 미구성
-  - 기존 구형 EC2 정리
   - BE 저장소의 Lambda/BE blue-green 별도 마무리
 
 ## 2. 현재 운영 인프라 기준
@@ -55,33 +55,34 @@
 
 - [ ] staging 접속 확인: `http://43.203.254.53`
 - [ ] production 접속 확인: `http://3.34.42.44`
+- [ ] staging K8s 접속 확인: `http://k8s-ingressn-ingressn-586ae714d8-9386cd95cb4c3850.elb.ap-northeast-2.amazonaws.com`
 - [ ] 로그인, 게시글 목록, 게시글 상세, 업로드까지 한 번씩 수동 확인
 
-### 4-2. 구형 EC2 정리
+### 4-2. production K8s 준비
 
-- [ ] old staging BE 인스턴스 `i-035a919987aa159d8` 중지 또는 종료
-- [ ] old production FE 인스턴스 `i-0c3f4c6eecd8d61bd` 중지 또는 종료
-- [ ] old production BE 인스턴스 `i-0984b493881d8275b` 중지 또는 종료
-
-권장:
-- 먼저 `중지`
-- 하루 정도 문제 없으면 `종료`
-
-### 4-3. 임시 보안그룹 규칙 정리
-
-- [ ] `SSH 22 / 0.0.0.0/0` 임시 허용 삭제
-- [ ] `BE 8080 / 0.0.0.0/0` 임시 허용 삭제
+- [ ] `K8S_DATABASE_URL_PROD` 입력
+- [ ] `K8S_CORS_ALLOW_ORIGINS_PROD` 입력
 
 참고:
-- production FE는 private backend IP를 향하도록 설정했기 때문에 prod의 `8080 공개`는 유지할 이유가 없습니다.
+- staging K8s는 `sqlite:///./data/community.db`로 검증 완료
+- staging backend replica는 재배포 시에도 `1`이 되도록 workflow 기본값을 수정함
+
+### 4-3. shared cluster 운영 방식 결정
+
+- [ ] shared EKS에서 staging/prod를 함께 운영할지 결정
+- [ ] 함께 운영하면 ingress를 host 기반으로 분리할지 결정
+- [ ] production K8s용 host 또는 domain 준비
+
+참고:
+- 현재 ingress 템플릿은 hostless라서 staging/prod를 같은 클러스터에 동시에 올리면 충돌 여지가 있습니다.
 
 ### 4-4. K8s 배포 준비
 
-- [ ] `KUBE_CONFIG_DATA_STAGING` 입력
-- [ ] `KUBE_CONFIG_DATA_PROD` 입력
-- [ ] `K8S_DATABASE_URL_STAGING` 입력
+- [x] `KUBE_CONFIG_DATA_STAGING` 입력
+- [x] `KUBE_CONFIG_DATA_PROD` 입력
+- [x] `K8S_DATABASE_URL_STAGING` 입력
 - [ ] `K8S_DATABASE_URL_PROD` 입력
-- [ ] `K8S_CORS_ALLOW_ORIGINS_STAGING` 입력
+- [x] `K8S_CORS_ALLOW_ORIGINS_STAGING` 입력
 - [ ] `K8S_CORS_ALLOW_ORIGINS_PROD` 입력
 
 점검 명령:
@@ -113,13 +114,8 @@ BE 저장소 참고:
 현재 누락:
 
 - repo vars
-  - `K8S_DATABASE_URL_STAGING`
   - `K8S_DATABASE_URL_PROD`
-  - `K8S_CORS_ALLOW_ORIGINS_STAGING`
   - `K8S_CORS_ALLOW_ORIGINS_PROD`
-- environment secrets
-  - `KUBE_CONFIG_DATA_STAGING`
-  - `KUBE_CONFIG_DATA_PROD`
 
 참고 문서:
 - [github-actions-secrets-vars-template.md](/Users/sungjin/dev/personal/2-sungjin-community-fe/docs/github-actions-secrets-vars-template.md)
@@ -131,7 +127,7 @@ BE 저장소 참고:
 - staging EC2 배포 성공
 - production EC2 배포 성공
 - production ECS 배포 성공
+- staging K8s 배포 성공
 - FE/BE health 정상
 - 브라우저 수동 점검 완료
-- 구형 EC2 및 임시 보안그룹 정리 완료
-- K8s 값 입력 후 K8s 배포 성공
+- production K8s 값 입력 후 production K8s 배포 성공

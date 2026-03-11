@@ -6,7 +6,7 @@ metadata:
   labels:
     app: community-frontend
 spec:
-  replicas: 2
+  replicas: ${FRONTEND_REPLICAS}
   selector:
     matchLabels:
       app: community-frontend
