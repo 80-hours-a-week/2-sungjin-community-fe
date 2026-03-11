@@ -1,6 +1,6 @@
 # 배포 실행 체크리스트
 
-기준일: 2026-03-10
+기준일: 2026-03-11
 
 ## 1. 현재 완료 상태
 
@@ -8,30 +8,28 @@
   - FE `Dockerfile`, `.dockerignore` 작성 및 DockerHub push 자동화
   - BE `Dockerfile`, `.dockerignore`, `Dockerfile.lambda` 작성
   - `mysql + nginx + fe + be` compose 배포 자동화
+  - Portainer + private registry stack 자산 작성
+  - Portainer HTTPS reverse proxy + registry basic auth 자산 작성
   - staging EC2 배포 성공
   - production EC2 배포 성공
   - production ECS 배포 성공
   - staging K8s 배포 성공
   - FE blue/green staging/prod 배포 성공
+  - dedicated self-hosted runner EC2 Terraform bootstrap 자산 작성
   - FE 테스트 통과
 - 아직 남음:
-  - production K8s 값 입력
-  - production K8s 배포
-  - self-hosted runner 미구성
+  - production K8s 값 입력 및 배포
+  - self-hosted runner 실제 런타임 생성 및 등록
   - BE 저장소의 Lambda/BE blue-green 별도 마무리
 
 ## 2. 현재 운영 인프라 기준
 
-- staging:
-  - FE blue/green EC2: `43.203.254.53`
-  - BE compose EC2: `13.125.251.52`
-- production:
-  - FE blue/green EC2: `3.34.42.44`
-  - BE compose EC2: `15.164.170.95`
-- production ECS:
-  - cluster: `community-prod-cluster`
-  - frontend service: `community-prod-frontend-service`
-  - backend service: `community-prod-backend-service`
+- 현재는 비용 통제를 위해 AWS runtime resource를 teardown한 상태입니다.
+- 검증 당시 수행 범위:
+  - staging EC2 compose / blue-green
+  - production EC2 compose / blue-green
+  - production ECS
+  - staging K8s
 
 ## 3. Codex가 끝낸 것
 
@@ -49,19 +47,28 @@
   - production FE host `/api/health`
   - production BE host `:8080/api/health`
 
-## 4. 지금 사용자님이 해야 하는 일
+## 4. 현재 사용자 액션 기준
 
-### 4-1. 브라우저로 최종 확인
+현재 상태:
+- 비용 통제를 위해 AWS runtime resource는 정리 완료
+- 리포지토리에는 Docker / Compose / ECS / K8s / self-hosted runner 자산과 문서가 남아 있음
+- push 시 AWS 리소스가 다시 생성되지 않도록 주요 배포 workflow는 `workflow_dispatch` 수동 실행 기준으로 유지
 
-- [ ] staging 접속 확인: `http://43.203.254.53`
-- [ ] production 접속 확인: `http://3.34.42.44`
-- [ ] staging K8s 접속 확인: `http://k8s-ingressn-ingressn-586ae714d8-9386cd95cb4c3850.elb.ap-northeast-2.amazonaws.com`
-- [ ] 로그인, 게시글 목록, 게시글 상세, 업로드까지 한 번씩 수동 확인
+### 4-1. 포트폴리오 제출용으로 남겨둘 것
 
-### 4-2. production K8s 준비
+- [x] FE/BE Docker image build 자산
+- [x] `mysql + nginx + fe + be` compose 자산
+- [x] Portainer HTTPS + private registry 자산
+- [x] GitHub Actions EC2 / ECS / K8s workflow 자산
+- [x] dedicated self-hosted runner EC2 bootstrap 자산
+- [x] README / runbook / reliability report
+
+### 4-2. 필요 시에만 다시 할 일
 
 - [ ] `K8S_DATABASE_URL_PROD` 입력
 - [ ] `K8S_CORS_ALLOW_ORIGINS_PROD` 입력
+- [ ] 필요 시 `enable_self_hosted_runner=true`로 runner EC2 생성
+- [ ] 필요 시 Portainer/registry stack 실행 후 인증서/htpasswd 생성
 
 참고:
 - staging K8s는 `sqlite:///./data/community.db`로 검증 완료
@@ -94,10 +101,17 @@
 ### 4-5. self-hosted runner가 정말 필요한지 결정
 
 - [ ] 필요 없으면 현 상태 유지
-- [ ] 필요하면 GitHub self-hosted runner를 별도 설치
+- [ ] 필요하면 전용 EC2를 생성하고 GitHub self-hosted runner 등록
 
 현재 조치:
 - [deploy-ec2-compose-self-hosted.yml](/Users/sungjin/dev/personal/2-sungjin-community-fe/.github/workflows/deploy-ec2-compose-self-hosted.yml)는 `workflow_dispatch` 수동 실행 전용으로 바꿨습니다.
+- Terraform 자산:
+  - `enable_self_hosted_runner`
+  - `runner_instance_type`
+  - `github_runner_org`
+  - `github_runner_repo`
+  - `github_runner_version`
+  - `github_runner_token`
 
 ### 4-6. BE 저장소 별도 작업
 
@@ -128,6 +142,9 @@ BE 저장소 참고:
 - production EC2 배포 성공
 - production ECS 배포 성공
 - staging K8s 배포 성공
+- Portainer HTTPS + authenticated private registry 자산 준비 완료
+- dedicated self-hosted runner EC2 provisioning 자산 준비 완료
 - FE/BE health 정상
-- 브라우저 수동 점검 완료
-- production K8s 값 입력 후 production K8s 배포 성공
+- 커밋/푸시 및 README 문서화 완료
+
+운영 상시 구동은 비용 문제로 완료 판정에 포함하지 않습니다.

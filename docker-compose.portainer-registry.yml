@@ -5,8 +5,12 @@ services:
     restart: unless-stopped
     environment:
       REGISTRY_STORAGE_DELETE_ENABLED: "true"
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: "Community Registry"
+      REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
     volumes:
       - registry_data:/var/lib/registry
+      - ./ops/registry/auth:/auth:ro
     ports:
       - "5000:5000"
 
@@ -15,16 +19,27 @@ services:
     container_name: community-portainer
     restart: unless-stopped
     command:
-      - --http-disabled
       - -H
       - unix:///var/run/docker.sock
-    ports:
-      - "9443:9443"
+    expose:
+      - "9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
     depends_on:
       - registry
+
+  portainer-proxy:
+    image: nginx:1.27-alpine
+    container_name: community-portainer-proxy
+    restart: unless-stopped
+    depends_on:
+      - portainer
+    ports:
+      - "9443:9443"
+    volumes:
+      - ./ops/portainer/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ops/portainer/certs:/etc/nginx/certs:ro
 
 volumes:
   registry_data:

@@ -1,0 +1,42 @@
+#!/bin/bash
+set -euxo pipefail
+
+dnf update -y
+dnf install -y git curl tar gzip jq docker
+
+systemctl enable docker
+systemctl restart docker
+usermod -aG docker ec2-user || true
+
+mkdir -p /opt
+if [[ ! -d /opt/community-fe ]]; then
+  git clone --branch ${frontend_repo_branch} ${frontend_repo_url} /opt/community-fe
+else
+  cd /opt/community-fe
+  git fetch origin
+  git checkout ${frontend_repo_branch}
+  git reset --hard origin/${frontend_repo_branch}
+fi
+
+chown -R ec2-user:ec2-user /opt/community-fe
+
+cat > /home/ec2-user/RUNNER_SETUP.md <<SETUP
+GitHub Actions self-hosted runner host is ready.
+
+Repository: ${github_runner_org}/${github_runner_repo}
+Runner version: ${github_runner_version}
+
+To register manually:
+  cd /opt/community-fe
+  ./scripts/register-self-hosted-runner.sh ${github_runner_org} ${github_runner_repo} ${github_runner_version} <RUNNER_TOKEN>
+SETUP
+
+chown ec2-user:ec2-user /home/ec2-user/RUNNER_SETUP.md
+
+if [[ -n "${github_runner_token}" ]]; then
+  sudo -u ec2-user /opt/community-fe/scripts/register-self-hosted-runner.sh \
+    ${github_runner_org} \
+    ${github_runner_repo} \
+    ${github_runner_version} \
+    ${github_runner_token}
+fi

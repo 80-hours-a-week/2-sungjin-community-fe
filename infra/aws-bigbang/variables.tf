@@ -63,6 +63,18 @@ variable "backend_instance_type" {
   default     = "t3.micro"
 }
 
+variable "enable_self_hosted_runner" {
+  description = "Whether to provision a dedicated EC2 for a GitHub Actions self-hosted runner"
+  type        = bool
+  default     = false
+}
+
+variable "runner_instance_type" {
+  description = "Dedicated self-hosted runner EC2 instance type"
+  type        = string
+  default     = "t3.micro"
+}
+
 variable "frontend_repo_url" {
   description = "Frontend Git repository URL"
   type        = string
@@ -85,6 +97,31 @@ variable "backend_repo_branch" {
   description = "Backend Git branch"
   type        = string
   default     = "develop"
+}
+
+variable "github_runner_org" {
+  description = "GitHub organization or owner for self-hosted runner registration"
+  type        = string
+  default     = "80-hours-a-week"
+}
+
+variable "github_runner_repo" {
+  description = "GitHub repository name for self-hosted runner registration"
+  type        = string
+  default     = "2-sungjin-community-fe"
+}
+
+variable "github_runner_version" {
+  description = "GitHub Actions runner version"
+  type        = string
+  default     = "2.326.0"
+}
+
+variable "github_runner_token" {
+  description = "Ephemeral GitHub self-hosted runner registration token. Leave empty to provision host without auto-registration."
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "db_name" {

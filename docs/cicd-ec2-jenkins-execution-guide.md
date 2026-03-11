@@ -35,6 +35,21 @@ export CONFIRM_DESTROY_PROD=DESTROY_PROD
 
 ## 3) Run GitHub Actions on Your Own EC2
 
+이 저장소에는 전용 self-hosted runner EC2를 Terraform으로 만들 수 있는 자산도 포함되어 있습니다.
+
+```hcl
+enable_self_hosted_runner = true
+runner_instance_type      = "t3.micro"
+github_runner_org         = "80-hours-a-week"
+github_runner_repo        = "2-sungjin-community-fe"
+github_runner_version     = "2.326.0"
+github_runner_token       = "<ephemeral-runner-token>"
+```
+
+- `github_runner_token`을 비우면 runner host만 생성되고, 등록은 수동으로 진행합니다.
+- 토큰을 넣으면 userdata에서 `register-self-hosted-runner.sh`를 자동 실행합니다.
+- 전용 runner는 별도 EC2 인스턴스로 분리하는 과제 요구사항에 맞춘 구성입니다.
+
 ### 3-1. Register self-hosted runner on EC2
 1. GitHub Repo > `Settings` > `Actions` > `Runners` > `New self-hosted runner`
 2. Runner token 복사
@@ -54,6 +69,9 @@ cd 2-sungjin-community-fe
   - `DOCKERHUB_PAT`
 - Input:
   - `image_tag` (예: `miniquest-20260226-1213`)
+
+Terraform output:
+- `runner_public_ip`
 
 ## 4) Attach Jenkins on EC2 and Connect GitHub
 
@@ -93,4 +111,3 @@ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
 ### 4-5. Jenkins pipeline source
 - FE repo root: `Jenkinsfile`
 - BE repo root: `Jenkinsfile`
-

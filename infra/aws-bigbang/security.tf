@@ -98,6 +98,28 @@ resource "aws_security_group" "backend_ec2" {
   }
 }
 
+resource "aws_security_group" "runner_ec2" {
+  count       = var.enable_self_hosted_runner ? 1 : 0
+  name        = "${local.name_prefix}-sg-runner"
+  description = "Dedicated GitHub Actions runner EC2 security group"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "SSH from admin"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.admin_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 resource "aws_security_group" "rds" {
   name        = "${local.name_prefix}-sg-rds"
   description = "RDS PostgreSQL security group"

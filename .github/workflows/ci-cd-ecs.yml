@@ -1,19 +1,6 @@
 name: CI/CD To ECS
 
 on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
-      - "Dockerfile"
-      - "package.json"
-      - "package-lock.json"
-      - "server.js"
-      - "routes/**"
-      - "views/**"
-      - "public/**"
-      - ".github/workflows/ci-cd-ecs.yml"
   workflow_dispatch:
     inputs:
       image_tag:
