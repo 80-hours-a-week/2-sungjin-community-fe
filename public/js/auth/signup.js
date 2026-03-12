@@ -2,14 +2,16 @@
  * Signup page script
  */
 (function initSignupPage() {
+    'use strict';
+
     const EMAIL_HELPER_STATE = Object.freeze({
         default: {
             text: '@를 포함한 이메일 형식으로 입력해 주세요.',
-            color: '#999'
+            className: 'helper-default'
         },
         available: {
             text: '사용 가능한 이메일입니다.',
-            color: '#28a745'
+            className: 'helper-success'
         }
     });
     const PROFILE_SYNC_FAILURE_MESSAGE = '회원가입은 완료되었지만 프로필 반영에 실패했습니다. 로그인 후 프로필을 다시 확인해 주세요.';
@@ -43,7 +45,7 @@
         const nicknameError = document.getElementById('nicknameError');
         const submitButton = form.querySelector('button[type="submit"]');
 
-        submitButton.style.background = '#ACA0EB';
+        setSubmitButtonState(submitButton, false);
         applyEmailHelperState(emailHelper, EMAIL_HELPER_STATE.default);
 
         if (profilePreview && profileInput) {
@@ -58,18 +60,14 @@
         }
 
         if (profileInput) {
+            setupImageDragAndDrop(profileInput);
             profileInput.addEventListener('change', (event) => {
                 const file = event.target.files && event.target.files[0];
                 if (!file) return;
 
-                if (file.size > 5 * 1024 * 1024) {
-                    showFieldError(profileError, '이미지 크기는 5MB 이하여야 합니다.');
-                    profileInput.value = '';
-                    return;
-                }
-
-                if (!file.type.startsWith('image/')) {
-                    showFieldError(profileError, '이미지 파일만 업로드 가능합니다.');
+                const validation = validateImageFile(file);
+                if (!validation.valid) {
+                    showFieldError(profileError, validation.message);
                     profileInput.value = '';
                     return;
                 }
@@ -84,6 +82,7 @@
                             src="${readEvent.target.result}"
                             style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
                             alt="프로필 미리보기"
+                            loading="lazy"
                         >
                     `;
                 };
@@ -115,13 +114,12 @@
                     hideFieldError(emailError);
                     applyEmailHelperState(emailHelper, EMAIL_HELPER_STATE.available);
                 } catch (error) {
-                    // If backend removed check-email endpoint, do not block signup.
                     if (Number(error.status) === 404) {
                         checkedEmail = email;
                         hideFieldError(emailError);
                         applyEmailHelperState(emailHelper, {
                             text: '이메일 중복 확인 API를 지원하지 않아 가입 시 검증됩니다.',
-                            color: '#f59e0b'
+                            className: 'helper-warning'
                         });
                     } else {
                         checkedEmail = '';
@@ -214,7 +212,7 @@
                 }
 
                 if (profileSyncFailed) {
-                    showToast(PROFILE_SYNC_FAILURE_MESSAGE, 5000);
+                    showToast(PROFILE_SYNC_FAILURE_MESSAGE, { type: 'error', duration: 5000 });
                 }
                 confirmModal.style.display = 'flex';
             } catch (error) {
@@ -228,7 +226,7 @@
                 } else if (resolved.message.includes('닉네임')) {
                     showFieldError(nicknameError, resolved.message);
                 } else {
-                    showToast(resolved.message);
+                    showToast(resolved.message, { type: 'error' });
                 }
             } finally {
                 submitButton.disabled = false;
@@ -251,17 +249,17 @@
 
             const isProfileValid = profileImageFile !== null;
             const isEmailValid = validateEmail(email) && checkedEmail === email;
-            const isPasswordValid = validatePasswordComplex(password);
+            const isPasswordValid = validatePasswordComplex(password).valid;
             const isPasswordConfirmValid = password === passwordConfirm && passwordConfirm.length > 0;
             const isNicknameValid = nickname.length >= 1 && nickname.length <= 10 && !nickname.includes(' ');
 
-            submitButton.style.background = (
+            setSubmitButtonState(submitButton,
                 isProfileValid &&
                 isEmailValid &&
                 isPasswordValid &&
                 isPasswordConfirmValid &&
                 isNicknameValid
-            ) ? '#7F6AEE' : '#ACA0EB';
+            );
         }
         });
     }
@@ -283,7 +281,7 @@
 
         if (!payload.password) {
             errors.password = '비밀번호를 입력해 주세요.';
-        } else if (!validatePasswordComplex(payload.password)) {
+        } else if (!validatePasswordComplex(payload.password).valid) {
             errors.password = '8~20자, 대문자/소문자/숫자/특수문자를 각각 1개 이상 포함해 주세요.';
         }
 
@@ -304,37 +302,18 @@
         return errors;
     }
 
-    function validatePasswordComplex(password) {
-        const value = String(password || '');
-        if (value.length < 8 || value.length > 20) return false;
-        return (
-            /[A-Z]/.test(value) &&
-            /[a-z]/.test(value) &&
-            /[0-9]/.test(value) &&
-            /[!@#$%^&*(),.?":{}|<>]/.test(value)
-        );
-    }
-
     function applyEmailHelperState(element, state) {
         if (!element || !state) return;
         element.textContent = state.text;
-        element.style.color = state.color;
+        // Remove all helper state classes before applying new one
+        element.classList.remove('helper-success', 'helper-error', 'helper-default', 'helper-warning');
+        if (state.className) {
+            element.classList.add(state.className);
+        }
     }
 
     function isEmailAlreadyExistsMessage(message) {
         return String(message || '').includes('이미 사용 중인 이메일');
-    }
-
-    function showFieldError(element, message) {
-        if (!element) return;
-        element.textContent = message;
-        element.classList.add('show');
-    }
-
-    function hideFieldError(element) {
-        if (!element) return;
-        element.textContent = '';
-        element.classList.remove('show');
     }
 
     function clearProfileImage(profileInput, profilePreview) {
@@ -345,7 +324,6 @@
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = {
-            validatePasswordComplex,
             validateSignupForm,
             applyEmailHelperState,
             isEmailAlreadyExistsMessage,
