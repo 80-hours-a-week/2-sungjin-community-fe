@@ -4,7 +4,7 @@
 `2-sungjin-community-fe`는 **Vanilla JavaScript + Express** 기반의 community web client입니다.
 이 저장소는 단순 UI 구현이 아니라, 실제 서비스 관점에서 필요한 **client-side routing, form validation, API integration, deployment automation, infra handoff**까지 포함한 frontend delivery repository입니다.
 
-This repository was built as a portfolio-grade submission for an academy project. The goal was not only to ship screens, but to prove end-to-end ownership across **application delivery, Dockerization, CI/CD, EC2/ECS deployment, and Kubernetes validation**.
+This repository was built as a portfolio-grade submission for an academy project. The goal was not only to ship screens, but to prove end-to-end ownership across **application delivery, UI/UX refinement, Dockerization, CI/CD, EC2/ECS deployment, and Kubernetes validation**.
 
 - Frontend Repo: `https://github.com/sungjin9288/2-sungjin-community-fe`
 - Backend Repo: `https://github.com/sungjin9288/2-sungjin-community-be`
@@ -15,7 +15,7 @@ This frontend repository covers the following responsibilities:
 
 | Area | Scope |
 | --- | --- |
-| Web Client | Authentication UI, posts feed, post detail/write/edit, comments, profile management, 1:1 direct message UX |
+| Web Client | Authentication UI, posts feed, post detail/write/edit, comments, profile management, 1:1 direct message UX, shared header/navigation, theme-aware interaction |
 | Frontend Server | Express-based static serving, runtime config injection, health endpoint |
 | Quality | Unit tests, API smoke tests, upload path verification |
 | Delivery | Docker image build, Docker Hub push, EC2 compose deployment, ECS image delivery, Kubernetes manifest rendering |
@@ -25,6 +25,9 @@ This frontend repository covers the following responsibilities:
 - Implemented a **framework-free frontend** with Vanilla JS while keeping production-style modularization.
 - Added **server-side config injection** via `config.js` so the same frontend artifact can target different environments without rebuild-time hardcoding.
 - Implemented **health endpoint** (`/health`) for load balancer, blue/green, and smoke validation use cases.
+- Refactored repeated page chrome into a **shared header component** and stabilized view-to-script contracts with markup smoke tests.
+- Added **UI polish and resilience improvements** such as password visibility toggles, auto-resizing textareas, skeleton loading states, empty-state rendering, and theme switching.
+- Added **PWA baseline assets** (`manifest.json`, `sw.js`) so the frontend can evolve toward installable/mobile-friendly delivery.
 - Automated FE image delivery to **Docker Hub** and **Amazon ECR**.
 - Verified deployment flows across:
   - `Docker Compose on EC2`
@@ -47,6 +50,7 @@ This frontend repository covers the following responsibilities:
 - `node --test`
 - `verify_api.js`
 - `verify_upload_gateway.js`
+- markup/view smoke assertions for runtime DOM contracts
 
 ### Delivery / Infra
 - `Docker / Docker Compose`
@@ -95,6 +99,10 @@ This project intentionally keeps a lightweight Node/Express layer so the fronten
 - toast and modal feedback instead of native alert
 - upload preview and client-side image validation
 - resilient signup helper state management
+- password visibility toggle and accessible form interaction
+- auto-resize textarea, skeleton loading, and empty-state components
+- shared header injection and delegated navigation handling
+- markdown-friendly post authoring / rendering flow
 
 ## 프로젝트 구조 | Repository Structure
 
@@ -104,13 +112,14 @@ This project intentionally keeps a lightweight Node/Express layer so the fronten
 │   ├── css/                     # page-specific and shared styles
 │   ├── js/
 │   │   ├── auth/                # login/signup flows
+│   │   ├── header.js            # shared header renderer
 │   │   ├── posts/               # feed, detail, write/edit
 │   │   ├── api.js               # API client wrapper
 │   │   └── utils.js             # shared client utilities
 │   └── images/
 ├── routes/                      # Express route handlers
 ├── views/                       # static HTML views
-├── tests/                       # node --test suites
+├── tests/                       # node --test suites + markup smoke coverage
 ├── scripts/                     # deployment helpers
 ├── ecs/taskdefs/                # ECS bootstrap task definitions
 ├── k8s/templates/               # Kubernetes manifest templates
@@ -165,6 +174,10 @@ Open:
 ```bash
 npm test
 ```
+
+Current local baseline:
+- `30/30 passed`
+- includes utility tests, message UI tests, signup helper tests, and markup contract smoke tests
 
 ### API integration smoke test
 ```bash
@@ -226,6 +239,7 @@ This frontend repository participated in validating the following delivery targe
 This repository is suitable for portfolio review because it demonstrates:
 
 - client implementation without heavy frontend frameworks
+- iterative UI/UX refinement with runtime-safe refactoring
 - environment-aware frontend delivery
 - CI/CD ownership beyond local development
 - deployment troubleshooting in real AWS environments
