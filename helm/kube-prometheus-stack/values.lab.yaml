@@ -1,0 +1,18 @@
+grafana:
+  adminPassword: "ChangeMeBeforeRealUse!"
+  service:
+    type: ClusterIP
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway.loki.svc.cluster.local/
+      isDefault: false
+      editable: true
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+
+alertmanager:
+  enabled: false
