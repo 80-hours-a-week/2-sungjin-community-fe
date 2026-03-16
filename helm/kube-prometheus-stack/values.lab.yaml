@@ -6,7 +6,7 @@ grafana:
     - name: Loki
       type: loki
       access: proxy
-      url: http://loki-gateway.loki.svc.cluster.local/
+      url: http://loki-stack.loki.svc.cluster.local:3100
       isDefault: false
       editable: true
 

@@ -1,18 +1,23 @@
-deploymentMode: SingleBinary
+test_pod:
+  enabled: false
+
+grafana:
+  enabled: false
+
+prometheus:
+  enabled: false
+
+fluent-bit:
+  enabled: false
+
+filebeat:
+  enabled: false
+
+logstash:
+  enabled: false
+
+promtail:
+  enabled: true
 
 loki:
-  auth_enabled: false
-  commonConfig:
-    replication_factor: 1
-
-singleBinary:
-  replicas: 1
-
-backend:
-  replicas: 0
-
-read:
-  replicas: 0
-
-write:
-  replicas: 0
+  isDefault: false
