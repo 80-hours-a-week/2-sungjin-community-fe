@@ -1,64 +1,116 @@
-const CACHE_NAME = 'community-cache-v1';
-const URLS_TO_CACHE = [
-    '/',
-    '/css/common.css',
+const CACHE_NAME = 'community-cache-v2';
+const STATIC_ASSETS = [
     '/css/design-system.css',
+    '/css/common.css',
     '/js/utils.js',
-    '/js/header.js'
+    '/js/header.js',
+    '/images/default-profile.png',
 ];
 
+// ===========================
+// Install: 핵심 정적 자원 프리캐시
+// ===========================
 self.addEventListener('install', (event) => {
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => {
-                return cache.addAll(URLS_TO_CACHE);
-            })
+            .then((cache) => cache.addAll(STATIC_ASSETS))
     );
 });
 
-self.addEventListener('fetch', (event) => {
-    // Only intercept basic GET requests
-    if (event.request.method !== 'GET') return;
-    
-    // Ignore API requests
-    if (event.request.url.includes('/api/')) return;
-
-    event.respondWith(
-        caches.match(event.request)
-            .then((response) => {
-                // Return cached response if found
-                if (response) {
-                    return response;
-                }
-                
-                // Otherwise fetch from network
-                return fetch(event.request).catch(() => {
-                    // Fallback for navigation requests (HTML pages) if offline
-                    if (event.request.mode === 'navigate') {
-                        return new Response(
-                            `<div style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-                                <h1>오프라인 상태입니다.</h1>
-                                <p>네트워크 연결을 확인해주세요.</p>
-                             </div>`,
-                            { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-                        );
-                    }
-                });
-            })
-    );
-});
-
+// ===========================
+// Activate: 이전 버전 캐시 정리
+// ===========================
 self.addEventListener('activate', (event) => {
-    const cacheAllowlist = [CACHE_NAME];
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cacheName) => {
-                    if (cacheAllowlist.indexOf(cacheName) === -1) {
-                        return caches.delete(cacheName);
-                    }
-                })
-            );
-        })
+        caches.keys().then((keys) =>
+            Promise.all(
+                keys
+                    .filter((key) => key !== CACHE_NAME)
+                    .map((key) => caches.delete(key))
+            )
+        ).then(() => self.clients.claim())
     );
 });
+
+// ===========================
+// Fetch: 요청 유형별 전략 분기
+// ===========================
+self.addEventListener('fetch', (event) => {
+    // GET 요청만 처리
+    if (event.request.method !== 'GET') return;
+
+    const url = new URL(event.request.url);
+
+    // API 요청은 캐시하지 않고 바이패스
+    if (url.pathname.startsWith('/api/')) return;
+
+    // 정적 자원 (CSS, JS, 이미지) → Cache-first
+    const isStaticAsset =
+        url.hostname === self.location.hostname &&
+        (url.pathname.startsWith('/css/') ||
+         url.pathname.startsWith('/js/') ||
+         url.pathname.startsWith('/images/'));
+
+    if (isStaticAsset) {
+        event.respondWith(
+            caches.match(event.request).then((cached) =>
+                cached || fetch(event.request).then((response) => {
+                    if (response.ok) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
+                    }
+                    return response;
+                })
+            )
+        );
+        return;
+    }
+
+    // HTML 페이지 요청 → Network-first, 실패 시 캐시, 완전 실패 시 오프라인 메시지
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    if (response.ok) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
+                    }
+                    return response;
+                })
+                .catch(() =>
+                    caches.match(event.request).then(
+                        (cached) =>
+                            cached ||
+                            new Response(
+                                `<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="UTF-8"><title>오프라인</title></head>
+<body style="font-family:sans-serif;text-align:center;padding:60px;">
+  <h1>오프라인 상태입니다.</h1>
+  <p>네트워크 연결을 확인하고 다시 시도해 주세요.</p>
+  <button onclick="location.reload()">다시 시도</button>
+</body>
+</html>`,
+                                { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+                            )
+                    )
+                )
+        );
+        return;
+    }
+
+    // 그 외 요청 → Stale-while-revalidate
+    event.respondWith(
+        caches.open(CACHE_NAME).then((cache) =>
+            cache.match(event.request).then((cached) => {
+                const fetchPromise = fetch(event.request).then((response) => {
+                    if (response.ok) cache.put(event.request, response.clone());
+                    return response;
+                });
+                return cached || fetchPromise;
+            })
+        )
+    );
+});
+
