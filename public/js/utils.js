@@ -626,10 +626,40 @@ async function loadHeaderProfile() {
         headerImage.onerror = function onHeaderImageError() {
             this.src = '/images/default-profile.png';
         };
+        await refreshHeaderIndicators();
         return user;
     } catch (error) {
         console.debug('Failed to load header profile:', error.message);
         return null;
+    }
+}
+
+async function refreshHeaderIndicators() {
+    const notificationBadge = document.getElementById('headerNotificationBadge');
+    const messageBadge = document.getElementById('headerMessageCount');
+
+    if (!notificationBadge && !messageBadge) return;
+
+    const [notificationResult, messageResult] = await Promise.allSettled([
+        typeof getUnreadNotificationCount === 'function' ? getUnreadNotificationCount() : null,
+        typeof getUnreadMessageCount === 'function' ? getUnreadMessageCount() : null
+    ]);
+
+    const notificationCount = notificationResult.status === 'fulfilled'
+        ? Number(extractData(notificationResult.value, {}).unread_count || 0)
+        : 0;
+    const messageCount = messageResult.status === 'fulfilled'
+        ? Number(extractData(messageResult.value, {}).unread_count || 0)
+        : 0;
+
+    if (notificationBadge) {
+        notificationBadge.hidden = notificationCount <= 0;
+        notificationBadge.textContent = String(notificationCount);
+    }
+
+    if (messageBadge) {
+        messageBadge.hidden = messageCount <= 0;
+        messageBadge.textContent = String(messageCount);
     }
 }
 
@@ -836,6 +866,7 @@ if (typeof module !== 'undefined' && module.exports) {
         showFieldError,
         hideFieldError,
         setSubmitButtonState,
-        debounce
+        debounce,
+        refreshHeaderIndicators
     };
 }

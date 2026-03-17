@@ -42,6 +42,46 @@ body {
     align-items: center;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-header-icon {
+    position: relative;
+}
+
+.header-badge,
+.header-inline-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--color-danger);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.header-badge[hidden],
+.header-inline-badge[hidden] {
+    display: none;
+}
+
+.header-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+}
+
+.header-inline-badge {
+    margin-left: 8px;
+}
+
 .header-title {
     font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
@@ -137,6 +177,9 @@ body {
     cursor: pointer;
     transition: var(--transition-fast);
     border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .dropdown-menu button:hover {

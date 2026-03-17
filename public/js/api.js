@@ -52,7 +52,19 @@
         message_sent: '메시지를 전송했습니다.',
         read_conversations_success: '대화 목록을 불러왔습니다.',
         read_messages_success: '메시지를 불러왔습니다.',
-        search_message_users_success: '사용자를 불러왔습니다.'
+        search_message_users_success: '사용자를 불러왔습니다.',
+        read_notifications_success: '알림을 불러왔습니다.',
+        read_unread_notifications_success: '읽지 않은 알림 수를 불러왔습니다.',
+        notifications_read_all: '모든 알림을 읽음 처리했습니다.',
+        notification_read: '알림을 읽음 처리했습니다.',
+        read_bookmarked_posts_success: '북마크한 게시글을 불러왔습니다.',
+        bookmark_created: '게시글을 북마크했습니다.',
+        bookmark_deleted: '북마크를 해제했습니다.',
+        report_created: '신고가 접수되었습니다.',
+        user_blocked: '사용자를 차단했습니다.',
+        user_unblocked: '사용자 차단을 해제했습니다.',
+        read_blocks_success: '차단한 사용자 목록을 불러왔습니다.',
+        read_unread_messages_success: '읽지 않은 메시지 수를 불러왔습니다.'
     });
 
     class ApiError extends Error {
@@ -624,10 +636,10 @@
         return request(`/posts/${postId}/comments`);
     }
 
-    async function createComment(postId, content) {
+    async function createComment(postId, content, parentCommentId = null) {
         return request(`/posts/${postId}/comments`, {
             method: 'POST',
-            body: { content }
+            body: { content, parent_comment_id: parentCommentId }
         });
     }
 
@@ -687,12 +699,21 @@
         return request(`/messages/users${suffix}`);
     }
 
-    async function getConversations() {
-        return request('/messages/conversations');
+    async function getConversations(query = '') {
+        const params = new URLSearchParams();
+        if (query && String(query).trim()) {
+            params.set('query', String(query).trim());
+        }
+        const suffix = params.toString() ? `?${params.toString()}` : '';
+        return request(`/messages/conversations${suffix}`);
     }
 
     async function getMessagesWithUser(userId) {
         return request(`/messages/with/${userId}`);
+    }
+
+    async function getUnreadMessageCount() {
+        return request('/messages/unread-count');
     }
 
     async function sendDirectMessage(recipientId, content) {
@@ -702,6 +723,84 @@
                 recipient_id: recipientId,
                 content
             }
+        });
+    }
+
+    // =========================
+    // Notifications API
+    // =========================
+
+    async function getNotifications(unreadOnly = false, limit = 30) {
+        const params = new URLSearchParams();
+        if (unreadOnly) params.set('unread_only', 'true');
+        params.set('limit', String(limit));
+        return request(`/notifications?${params.toString()}`);
+    }
+
+    async function getUnreadNotificationCount() {
+        return request('/notifications/unread-count');
+    }
+
+    async function markNotificationRead(notificationId) {
+        return request(`/notifications/${notificationId}/read`, {
+            method: 'POST'
+        });
+    }
+
+    async function markAllNotificationsRead() {
+        return request('/notifications/read-all', {
+            method: 'POST'
+        });
+    }
+
+    // =========================
+    // Bookmark / Moderation API
+    // =========================
+
+    async function getBookmarkedPosts(page = 1, limit = 20) {
+        const params = new URLSearchParams();
+        params.set('page', String(page));
+        params.set('limit', String(limit));
+        return request(`/posts/bookmarks/me?${params.toString()}`);
+    }
+
+    async function bookmarkPost(postId) {
+        return request(`/posts/${postId}/bookmarks`, {
+            method: 'POST'
+        });
+    }
+
+    async function unbookmarkPost(postId) {
+        return request(`/posts/${postId}/bookmarks`, {
+            method: 'DELETE'
+        });
+    }
+
+    async function createReport(targetType, targetId, reason = 'etc', description = '') {
+        return request('/reports', {
+            method: 'POST',
+            body: {
+                target_type: targetType,
+                target_id: targetId,
+                reason,
+                description
+            }
+        });
+    }
+
+    async function getBlockedUsers() {
+        return request('/blocks/users');
+    }
+
+    async function blockUser(userId) {
+        return request(`/blocks/users/${userId}`, {
+            method: 'POST'
+        });
+    }
+
+    async function unblockUser(userId) {
+        return request(`/blocks/users/${userId}`, {
+            method: 'DELETE'
         });
     }
 
@@ -822,7 +921,19 @@
         searchMessageUsers,
         getConversations,
         getMessagesWithUser,
+        getUnreadMessageCount,
         sendDirectMessage,
+        getNotifications,
+        getUnreadNotificationCount,
+        markNotificationRead,
+        markAllNotificationsRead,
+        getBookmarkedPosts,
+        bookmarkPost,
+        unbookmarkPost,
+        createReport,
+        getBlockedUsers,
+        blockUser,
+        unblockUser,
         uploadImage,
         normalizeTags,
         toApiUrl,
