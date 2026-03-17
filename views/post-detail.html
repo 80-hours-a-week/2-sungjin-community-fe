@@ -42,7 +42,12 @@
                         <p id="postDate" class="post-date">날짜</p>
                     </div>
                 </div>
-                <button id="btnMessageAuthor" class="message-author-button" style="display: none;">작성자에게 메시지</button>
+                <div class="post-meta-actions">
+                    <button id="btnBookmarkToggle" class="message-author-button">북마크</button>
+                    <button id="btnReportPost" class="message-author-button" style="display: none;">게시글 신고</button>
+                    <button id="btnBlockAuthor" class="message-author-button" style="display: none;">작성자 차단</button>
+                    <button id="btnMessageAuthor" class="message-author-button" style="display: none;">작성자에게 메시지</button>
+                </div>
             </div>
 
             <div class="post-content">
@@ -88,6 +93,10 @@
                 <h3 class="comments-title">댓글</h3>
 
                 <div class="comment-input-container">
+                    <div id="replyTargetBar" class="reply-target-bar" style="display: none;">
+                        <span id="replyTargetText">답글 작성 중</span>
+                        <button id="btnCancelReply" type="button" class="btn-comment-cancel">답글 취소</button>
+                    </div>
                     <textarea id="commentInput" class="comment-input auto-resize" placeholder="댓글을 입력해 주세요" rows="3"></textarea>
                     <button class="btn-comment-submit" id="btnSubmitComment">댓글 등록</button>
                 </div>

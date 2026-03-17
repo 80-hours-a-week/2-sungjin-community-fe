@@ -6,7 +6,8 @@
         selectedUser: null,
         conversations: [],
         messages: [],
-        searchResults: []
+        searchResults: [],
+        conversationQuery: ''
     };
 
     function buildSearchUserItemHtml(user) {
@@ -56,6 +57,7 @@
         const input = document.getElementById('messageInput');
         const button = document.getElementById('btnSendMessage');
         const helper = document.getElementById('messageHelper');
+        const blockButton = document.getElementById('btnBlockChatUser');
 
         if (!user) {
             if (name) name.textContent = '대화 상대를 선택하세요';
@@ -67,6 +69,7 @@
             }
             if (button) button.disabled = true;
             if (helper) helper.textContent = '대화 상대를 먼저 선택하세요.';
+            if (blockButton) blockButton.disabled = true;
             return;
         }
 
@@ -76,6 +79,7 @@
         if (input) input.disabled = false;
         if (button) button.disabled = false;
         if (helper) helper.textContent = `${user.nickname}님에게 메시지를 보냅니다.`;
+        if (blockButton) blockButton.disabled = false;
     }
 
     function renderSearchResults(users) {
@@ -126,7 +130,7 @@
     }
 
     async function refreshConversations() {
-        const response = await getConversations();
+        const response = await getConversations(state.conversationQuery);
         state.conversations = extractData(response, []);
         renderConversations();
     }
@@ -178,6 +182,9 @@
         const conversationList = document.getElementById('conversationList');
         const messageForm = document.getElementById('messageForm');
         const messageInput = document.getElementById('messageInput');
+        const btnConversationSearch = document.getElementById('btnConversationSearch');
+        const conversationSearchInput = document.getElementById('conversationSearchInput');
+        const btnBlockChatUser = document.getElementById('btnBlockChatUser');
 
         if (searchButton) {
             searchButton.addEventListener('click', async () => {
@@ -190,6 +197,22 @@
                 if (event.key !== 'Enter') return;
                 event.preventDefault();
                 await handleSearch();
+            });
+        }
+
+        if (btnConversationSearch && conversationSearchInput) {
+            btnConversationSearch.addEventListener('click', async () => {
+                state.conversationQuery = conversationSearchInput.value.trim();
+                await loadConversations(state.selectedUser && state.selectedUser.id);
+            });
+        }
+
+        if (conversationSearchInput) {
+            conversationSearchInput.addEventListener('keydown', async (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                state.conversationQuery = conversationSearchInput.value.trim();
+                await loadConversations(state.selectedUser && state.selectedUser.id);
             });
         }
 
@@ -237,6 +260,29 @@
                 } catch (error) {
                     handleApiError(error, {
                         fallbackMessage: '메시지 전송에 실패했습니다.'
+                    });
+                }
+            });
+        }
+
+        if (btnBlockChatUser) {
+            btnBlockChatUser.addEventListener('click', async () => {
+                if (!state.selectedUser) return;
+                const confirmed = showConfirmDialog(`${state.selectedUser.nickname}님을 차단하시겠습니까? 이후 해당 사용자의 글과 메시지를 숨깁니다.`);
+                if (!confirmed) return;
+
+                try {
+                    await blockUser(state.selectedUser.id);
+                    showToast('사용자를 차단했습니다.');
+                    state.selectedUser = null;
+                    state.messages = [];
+                    setChatPartner(null);
+                    renderMessages();
+                    await refreshConversations();
+                    await refreshHeaderIndicators();
+                } catch (error) {
+                    handleApiError(error, {
+                        fallbackMessage: '사용자 차단에 실패했습니다.'
                     });
                 }
             });

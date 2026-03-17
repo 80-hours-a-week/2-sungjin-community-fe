@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>차단한 사용자 - 아무 말 대잔치</title>
+    <link rel="stylesheet" href="/css/design-system.css">
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/blocks.css">
+    <link rel="manifest" href="/manifest.json">
+</head>
+
+<body>
+    <div id="headerSlot" data-title="차단한 사용자" data-back-target="/posts"></div>
+
+    <main class="notifications-main">
+        <section class="notifications-shell">
+            <header class="notifications-toolbar">
+                <div>
+                    <h2>차단한 사용자 관리</h2>
+                    <p>커뮤니티 피드와 1:1 메시지에서 숨긴 사용자를 확인하고 다시 표시할 수 있습니다.</p>
+                </div>
+            </header>
+
+            <div id="blockedUsersList" class="blocked-users-list">
+                <div class="empty-state">차단한 사용자 목록을 불러오는 중입니다.</div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/config.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/js/header.js"></script>
+    <script src="/js/blocks.js"></script>
+</body>
+
+</html>

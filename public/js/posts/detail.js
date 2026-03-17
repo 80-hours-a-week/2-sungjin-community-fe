@@ -6,6 +6,8 @@
 
     let currentPostId = null;
     let currentCommentId = null;
+    let currentPost = null;
+    let replyingToCommentId = null;
 
     document.addEventListener('DOMContentLoaded', async () => {
         const isReady = await ensureAuthenticated();
@@ -31,11 +33,19 @@
         const btnDeletePost = document.getElementById('btnDeletePost');
         const likeButton = document.getElementById('likeButton');
         const btnSubmitComment = document.getElementById('btnSubmitComment');
+        const btnBookmarkToggle = document.getElementById('btnBookmarkToggle');
+        const btnReportPost = document.getElementById('btnReportPost');
+        const btnBlockAuthor = document.getElementById('btnBlockAuthor');
+        const btnCancelReply = document.getElementById('btnCancelReply');
 
         if (btnEditPost) btnEditPost.addEventListener('click', () => navigateTo(`/posts/${currentPostId}/edit`));
         if (btnDeletePost) btnDeletePost.addEventListener('click', showDeleteModal);
         if (likeButton) likeButton.addEventListener('click', toggleLike);
         if (btnSubmitComment) btnSubmitComment.addEventListener('click', submitComment);
+        if (btnBookmarkToggle) btnBookmarkToggle.addEventListener('click', toggleBookmark);
+        if (btnReportPost) btnReportPost.addEventListener('click', () => reportTarget('post', Number(currentPostId)));
+        if (btnBlockAuthor) btnBlockAuthor.addEventListener('click', handleBlockAuthor);
+        if (btnCancelReply) btnCancelReply.addEventListener('click', clearReplyTarget);
     }
 
     function bindModalEvents() {
@@ -65,9 +75,11 @@
         const commentsList = document.getElementById('commentsList');
         if (!commentsList) return;
 
-        commentsList.addEventListener('click', (event) => {
+        commentsList.addEventListener('click', async (event) => {
             const editButton = event.target.closest('.btn-comment-edit');
             const deleteButton = event.target.closest('.btn-comment-delete');
+            const replyButton = event.target.closest('.btn-comment-reply');
+            const reportButton = event.target.closest('.btn-comment-report');
 
             if (editButton) {
                 editComment(editButton.dataset.id);
@@ -75,6 +87,17 @@
 
             if (deleteButton) {
                 showDeleteCommentModal(deleteButton.dataset.id);
+            }
+
+            if (replyButton) {
+                setReplyTarget({
+                    id: Number(replyButton.dataset.id),
+                    author: replyButton.dataset.author || '사용자',
+                });
+            }
+
+            if (reportButton) {
+                await reportTarget('comment', Number(reportButton.dataset.id));
             }
         });
     }
@@ -87,6 +110,8 @@
             if (!post || !post.title) {
                 throw new Error('게시글을 찾을 수 없습니다.');
             }
+
+            currentPost = post;
 
             document.title = `${post.title} - 아무 말 대잔치`;
             updateMetaTag('og:title', document.title);
@@ -127,27 +152,39 @@
 
             const likeButton = document.getElementById('likeButton');
             const likeText = document.getElementById('likeText');
-            if (post.is_liked && likeButton && likeText) {
-                likeButton.classList.add('active');
-                likeText.textContent = '좋아요 취소';
+            if (likeButton && likeText) {
+                likeButton.classList.toggle('active', Boolean(post.is_liked));
+                likeText.textContent = post.is_liked ? '좋아요 취소' : '좋아요';
+            }
+
+            const bookmarkButton = document.getElementById('btnBookmarkToggle');
+            if (bookmarkButton) {
+                bookmarkButton.dataset.bookmarked = post.is_bookmarked ? 'true' : 'false';
+                bookmarkButton.textContent = post.is_bookmarked ? '북마크 해제' : '북마크';
             }
 
             const postActions = document.getElementById('postActions');
-            if (post.is_author && postActions) {
-                postActions.style.display = 'flex';
+            const btnMessageAuthor = document.getElementById('btnMessageAuthor');
+            const btnReportPost = document.getElementById('btnReportPost');
+            const btnBlockAuthor = document.getElementById('btnBlockAuthor');
+            const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
+            const isAuthor = Boolean(post.is_author);
+
+            if (postActions) {
+                postActions.style.display = isAuthor ? 'flex' : 'none';
             }
 
-            const btnMessageAuthor = document.getElementById('btnMessageAuthor');
-            const currentUser = typeof getCurrentUser === 'function' ? getCurrentUser() : null;
-            if (
-                btnMessageAuthor &&
-                post.user_id &&
-                (!currentUser || Number(currentUser.id) !== Number(post.user_id))
-            ) {
-                btnMessageAuthor.style.display = 'inline-flex';
-                btnMessageAuthor.addEventListener('click', () => {
-                    navigateTo(`/messages?userId=${post.user_id}`);
-                });
+            if (!isAuthor && post.user_id) {
+                if (btnMessageAuthor) {
+                    btnMessageAuthor.style.display = 'inline-flex';
+                    btnMessageAuthor.onclick = () => navigateTo(`/messages?userId=${post.user_id}`);
+                }
+                if (btnReportPost) {
+                    btnReportPost.style.display = 'inline-flex';
+                }
+                if (btnBlockAuthor && (!currentUser || Number(currentUser.id) !== Number(post.user_id))) {
+                    btnBlockAuthor.style.display = 'inline-flex';
+                }
             }
         } catch (error) {
             handleApiError(error, {
@@ -165,6 +202,7 @@
             const response = await getComments(currentPostId);
             const comments = extractComments(response);
             renderComments(comments, container);
+            document.getElementById('commentCount').textContent = formatStatCount(countComments(comments));
         } catch (error) {
             container.innerHTML = buildEmptyStateHtml('댓글을 불러오지 못했습니다.', 'message');
             handleApiError(error, {
@@ -180,20 +218,18 @@
         return [];
     }
 
-    function renderComments(comments, container) {
-        if (!comments.length) {
-            container.innerHTML = buildEmptyStateHtml('첫 댓글을 남겨보세요.', 'message');
-            return;
-        }
+    function countComments(comments) {
+        return comments.reduce((acc, comment) => acc + 1 + countComments(comment.replies || []), 0);
+    }
 
-        container.innerHTML = '';
+    function buildCommentHtml(comment, depth = 0) {
+        const isMyComment = Boolean(comment.is_author);
+        const repliesHtml = Array.isArray(comment.replies) && comment.replies.length
+            ? `<div class="comment-replies">${comment.replies.map((reply) => buildCommentHtml(reply, depth + 1)).join('')}</div>`
+            : '';
 
-        comments.forEach((comment) => {
-            const isMyComment = Boolean(comment.is_author);
-            const item = document.createElement('div');
-            item.className = 'comment-item';
-
-            item.innerHTML = `
+        return `
+            <div class="comment-item${depth > 0 ? ' is-reply' : ''}">
                 <div class="comment-header">
                     <div class="comment-author">
                         <img
@@ -208,18 +244,54 @@
                             <div class="comment-time">${escapeHtml(formatDate(comment.created_at || new Date().toISOString()))}</div>
                         </div>
                     </div>
-                    ${isMyComment ? `
-                        <div class="comment-actions">
+                    <div class="comment-actions">
+                        <button class="btn-comment-reply" data-id="${comment.id}" data-author="${escapeHtml(comment.author_nickname || '익명')}">답글</button>
+                        ${isMyComment ? `
                             <button class="btn-comment-edit" data-id="${comment.id}">수정</button>
                             <button class="btn-comment-delete" data-id="${comment.id}">삭제</button>
-                        </div>
-                    ` : ''}
+                        ` : `
+                            <button class="btn-comment-report" data-id="${comment.id}">신고</button>
+                        `}
+                    </div>
                 </div>
                 <div class="comment-content">${escapeHtml(comment.content || '')}</div>
-            `;
+                ${repliesHtml}
+            </div>
+        `;
+    }
 
-            container.appendChild(item);
-        });
+    function renderComments(comments, container) {
+        if (!comments.length) {
+            container.innerHTML = buildEmptyStateHtml('첫 댓글을 남겨보세요.', 'message');
+            return;
+        }
+
+        container.innerHTML = comments.map((comment) => buildCommentHtml(comment)).join('');
+    }
+
+    function setReplyTarget(comment) {
+        replyingToCommentId = Number(comment.id);
+        const bar = document.getElementById('replyTargetBar');
+        const text = document.getElementById('replyTargetText');
+        if (bar) bar.style.display = 'flex';
+        if (text) text.textContent = `${comment.author}님에게 답글 작성 중`;
+        const input = document.getElementById('commentInput');
+        if (input) {
+            input.focus();
+            input.placeholder = `${comment.author}님에게 답글을 입력해 주세요`;
+        }
+    }
+
+    function clearReplyTarget() {
+        replyingToCommentId = null;
+        const bar = document.getElementById('replyTargetBar');
+        const text = document.getElementById('replyTargetText');
+        if (bar) bar.style.display = 'none';
+        if (text) text.textContent = '답글 작성 중';
+        const input = document.getElementById('commentInput');
+        if (input) {
+            input.placeholder = '댓글을 입력해 주세요';
+        }
     }
 
     async function submitComment() {
@@ -232,12 +304,10 @@
         }
 
         try {
-            await createComment(currentPostId, content);
+            await createComment(currentPostId, content, replyingToCommentId);
             input.value = '';
+            clearReplyTarget();
             await loadComments();
-
-            const commentCount = document.getElementById('commentCount');
-            commentCount.textContent = String(Number(commentCount.textContent || 0) + 1);
         } catch (error) {
             handleApiError(error, {
                 fallbackMessage: '댓글 작성에 실패했습니다.'
@@ -259,6 +329,58 @@
         }
     }
 
+    async function reportTarget(targetType, targetId) {
+        const description = window.prompt('신고 사유를 간단히 입력해 주세요.');
+        if (description === null) return;
+
+        try {
+            await createReport(targetType, targetId, 'etc', description || '사용자 신고');
+            showToast('신고가 접수되었습니다.');
+        } catch (error) {
+            handleApiError(error, {
+                fallbackMessage: '신고 접수에 실패했습니다.'
+            });
+        }
+    }
+
+    async function handleBlockAuthor() {
+        if (!currentPost || !currentPost.user_id) return;
+        const confirmed = showConfirmDialog(`${currentPost.author_nickname}님을 차단하시겠습니까? 이후 해당 사용자의 글과 메시지를 숨깁니다.`);
+        if (!confirmed) return;
+
+        try {
+            await blockUser(currentPost.user_id);
+            showToast('작성자를 차단했습니다.');
+            navigateTo('/posts');
+        } catch (error) {
+            handleApiError(error, {
+                fallbackMessage: '작성자 차단에 실패했습니다.'
+            });
+        }
+    }
+
+    async function toggleBookmark() {
+        const button = document.getElementById('btnBookmarkToggle');
+        if (!button) return;
+        const isBookmarked = button.dataset.bookmarked === 'true';
+
+        try {
+            if (isBookmarked) {
+                await unbookmarkPost(currentPostId);
+                button.dataset.bookmarked = 'false';
+                button.textContent = '북마크';
+            } else {
+                await bookmarkPost(currentPostId);
+                button.dataset.bookmarked = 'true';
+                button.textContent = '북마크 해제';
+            }
+        } catch (error) {
+            handleApiError(error, {
+                fallbackMessage: '북마크 처리에 실패했습니다.'
+            });
+        }
+    }
+
     function showDeleteCommentModal(commentId) {
         currentCommentId = commentId;
         const modal = document.getElementById('commentModal');
@@ -272,9 +394,6 @@
             await deleteComment(currentPostId, currentCommentId);
             closeCommentModal();
             await loadComments();
-
-            const commentCount = document.getElementById('commentCount');
-            commentCount.textContent = String(Math.max(0, Number(commentCount.textContent || 0) - 1));
         } catch (error) {
             handleApiError(error, {
                 fallbackMessage: '댓글 삭제에 실패했습니다.'
@@ -338,6 +457,6 @@
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { extractComments };
+        module.exports = { extractComments, countComments, buildCommentHtml };
     }
 })();
