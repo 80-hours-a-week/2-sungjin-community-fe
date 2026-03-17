@@ -9,24 +9,21 @@
     <link rel="stylesheet" href="/css/common.css">
     <link rel="stylesheet" href="/css/blocks.css">
     <link rel="manifest" href="/manifest.json">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="아무 말 대잔치">
+    <meta property="og:title" content="차단한 사용자 - 아무 말 대잔치">
+    <meta property="og:description" content="트렌디하고 힙한 글로벌 커뮤니티, 아무 말 대잔치">
+    <meta property="og:image" content="/images/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
 </head>
 
 <body>
-    <div id="headerSlot" data-title="차단한 사용자" data-back-target="/posts"></div>
+    <div id="headerSlot" data-title="차단한 사용자" data-back-action="history"></div>
 
-    <main class="notifications-main">
-        <section class="notifications-shell">
-            <header class="notifications-toolbar">
-                <div>
-                    <h2>차단한 사용자 관리</h2>
-                    <p>커뮤니티 피드와 1:1 메시지에서 숨긴 사용자를 확인하고 다시 표시할 수 있습니다.</p>
-                </div>
-            </header>
-
-            <div id="blockedUsersList" class="blocked-users-list">
-                <div class="empty-state">차단한 사용자 목록을 불러오는 중입니다.</div>
-            </div>
-        </section>
+    <main class="blocks-main">
+        <div class="blocks-container">
+            <div id="blockedUsersList" class="blocked-users-list"></div>
+        </div>
     </main>
 
     <script src="/config.js"></script>

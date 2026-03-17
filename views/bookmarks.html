@@ -4,30 +4,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>북마크한 게시글 - 아무 말 대잔치</title>
+    <title>북마크 - 아무 말 대잔치</title>
     <link rel="stylesheet" href="/css/design-system.css">
     <link rel="stylesheet" href="/css/common.css">
     <link rel="stylesheet" href="/css/posts.css">
     <link rel="stylesheet" href="/css/bookmarks.css">
     <link rel="manifest" href="/manifest.json">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="아무 말 대잔치">
+    <meta property="og:title" content="북마크 - 아무 말 대잔치">
+    <meta property="og:description" content="내가 북마크한 게시글을 모아봅니다.">
+    <meta property="og:image" content="/images/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
 </head>
 
 <body>
-    <div id="headerSlot" data-title="북마크한 게시글" data-back-target="/posts"></div>
+    <div id="headerSlot" data-title="북마크" data-back-action="history"></div>
 
-    <main class="posts-main">
-        <div class="posts-container">
-            <section class="bookmarks-shell">
-                <header class="bookmarks-toolbar">
-                    <div>
-                        <h2>저장한 게시글</h2>
-                        <p>나중에 다시 보고 싶은 게시글만 모아봤습니다.</p>
-                    </div>
-                </header>
-                <div id="bookmarksList" class="posts-list">
-                    <div class="loading">북마크한 게시글을 불러오는 중입니다...</div>
-                </div>
-            </section>
+    <main class="bookmarks-main">
+        <div class="bookmarks-container">
+            <div id="bookmarksList" class="bookmarks-list"></div>
         </div>
     </main>
 
