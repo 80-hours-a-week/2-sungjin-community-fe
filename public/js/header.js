@@ -43,6 +43,9 @@
                                 >
                             </button>
                             <div class="dropdown-menu" id="dropdownMenu">
+                                <button data-navigate="/chatbot">
+                                    🍽️ 식당 추천
+                                </button>
                                 <button data-navigate="/messages">
                                     1:1 메시지
                                     <span id="headerMessageCount" class="header-inline-badge" hidden>0</span>

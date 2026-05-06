@@ -64,7 +64,10 @@
         user_blocked: '사용자를 차단했습니다.',
         user_unblocked: '사용자 차단을 해제했습니다.',
         read_blocks_success: '차단한 사용자 목록을 불러왔습니다.',
-        read_unread_messages_success: '읽지 않은 메시지 수를 불러왔습니다.'
+        read_unread_messages_success: '읽지 않은 메시지 수를 불러왔습니다.',
+        chat_success: '추천 결과를 불러왔습니다.',
+        session_reset: '대화 기록을 초기화했습니다.',
+        status_ok: '상태를 확인했습니다.'
     });
 
     class ApiError extends Error {
@@ -805,6 +808,48 @@
     }
 
     // =========================
+    // Chatbot API
+    // =========================
+
+    /**
+     * 식당 추천 챗봇에 메시지를 전송한다.
+     * @param {string} message - 사용자 입력
+     * @param {string} [sessionId] - 세션 격리용 고유 ID
+     * @returns {Promise<{reply: string, recommended: Array}>}
+     */
+    async function chatWithBot(message, sessionId) {
+        const body = { message: String(message || '').trim() };
+        if (sessionId) body.session_id = sessionId;
+        const res = await request('/chatbot/chat', {
+            method: 'POST',
+            body,
+            auth: false   // 챗봇은 비로그인 사용 허용
+        });
+        return res && res.data ? res.data : res;
+    }
+
+    /**
+     * 챗봇 대화 기록을 초기화한다.
+     * @param {string} [sessionId] - 세션 ID
+     */
+    async function resetChatSession(sessionId) {
+        const body = {};
+        if (sessionId) body.session_id = sessionId;
+        return request('/chatbot/reset', {
+            method: 'POST',
+            body: Object.keys(body).length > 0 ? body : undefined,
+            auth: false
+        });
+    }
+
+    /**
+     * 챗봇/추천 엔진 초기화 상태를 확인한다.
+     */
+    async function getChatbotStatus() {
+        return request('/chatbot/status', { auth: false });
+    }
+
+    // =========================
     // Images API
     // =========================
 
@@ -934,6 +979,9 @@
         getBlockedUsers,
         blockUser,
         unblockUser,
+        chatWithBot,
+        resetChatSession,
+        getChatbotStatus,
         uploadImage,
         normalizeTags,
         toApiUrl,
