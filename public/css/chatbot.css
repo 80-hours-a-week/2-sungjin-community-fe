@@ -52,6 +52,64 @@
     font-size: 14px;
 }
 
+.preference-chips,
+.preference-actions {
+    padding: 14px 16px 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.preference-actions {
+    padding-bottom: 18px;
+}
+
+.preference-chip,
+.saved-chip,
+.empty-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    border-radius: 999px;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.preference-chip {
+    border: 1px solid rgba(6, 182, 212, 0.28);
+    background: rgba(6, 182, 212, 0.08);
+    color: var(--color-text-main);
+    padding: 0 11px;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.preference-chip:hover {
+    border-color: rgba(6, 182, 212, 0.56);
+    background: rgba(6, 182, 212, 0.14);
+    transform: translateY(-1px);
+}
+
+.saved-chip {
+    gap: 6px;
+    padding: 0 10px;
+    border: 1px solid var(--color-border);
+    background: rgba(255, 255, 255, 0.055);
+    color: var(--color-text-main);
+}
+
+.saved-chip b {
+    color: var(--color-secondary);
+    font-weight: 800;
+}
+
+.empty-chip {
+    padding: 0 10px;
+    color: var(--color-text-sub);
+    border: 1px dashed var(--color-border);
+}
+
 .status-dot {
     width: 10px;
     height: 10px;
@@ -146,6 +204,35 @@
     margin-top: 3px;
     color: var(--color-text-sub);
     font-size: 14px;
+}
+
+.chatbot-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.stream-toggle {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text-main);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.stream-toggle input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-secondary);
 }
 
 .reset-button,
@@ -283,11 +370,32 @@
     padding: 12px;
 }
 
+.shop-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
 .shop-card-name {
     color: var(--color-text-main);
     font-size: 15px;
     font-weight: 800;
     margin-bottom: 8px;
+}
+
+.score-pill {
+    flex: 0 0 auto;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    background: rgba(16, 185, 129, 0.09);
+    color: #a7f3d0;
+    font-size: 11px;
+    font-weight: 800;
 }
 
 .shop-card-row {
@@ -315,6 +423,59 @@
     background: rgba(255, 255, 255, 0.07);
     border: 1px solid var(--color-border);
     color: var(--color-text-main);
+}
+
+.reason-list {
+    margin: 10px 0 0;
+    padding-left: 18px;
+    color: var(--color-text-sub);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.feedback-actions {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.feedback-actions button,
+.next-question {
+    min-height: 32px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.065);
+    color: var(--color-text-main);
+    padding: 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.feedback-actions button:hover,
+.next-question:hover {
+    border-color: rgba(6, 182, 212, 0.42);
+    background: rgba(6, 182, 212, 0.1);
+}
+
+.feedback-actions button.active {
+    border-color: rgba(16, 185, 129, 0.48);
+    background: rgba(16, 185, 129, 0.14);
+    color: #bbf7d0;
+}
+
+.feedback-actions button:disabled {
+    opacity: 0.58;
+    cursor: not-allowed;
+}
+
+.next-questions {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .chat-input-form {
@@ -395,6 +556,15 @@
 
     .chatbot-header {
         align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .chatbot-header-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .shop-card-head {
         flex-direction: column;
     }
 

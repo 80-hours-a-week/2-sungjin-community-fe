@@ -37,6 +37,21 @@
 
                 <section class="chatbot-panel">
                     <div class="panel-header">
+                        <h2>내 취향</h2>
+                        <p id="preferenceSummary">아직 저장된 취향이 없습니다.</p>
+                    </div>
+                    <div id="preferenceChips" class="preference-chips"></div>
+                    <div class="preference-actions">
+                        <button type="button" class="preference-chip" data-pref-type="budget" data-pref-value="가성비">가성비</button>
+                        <button type="button" class="preference-chip" data-pref-type="situations" data-pref-value="데이트">데이트</button>
+                        <button type="button" class="preference-chip" data-pref-type="situations" data-pref-value="혼밥">혼밥</button>
+                        <button type="button" class="preference-chip" data-pref-type="cuisines" data-pref-value="파스타">파스타</button>
+                        <button type="button" class="preference-chip" data-pref-type="cuisines" data-pref-value="고기">고기</button>
+                    </div>
+                </section>
+
+                <section class="chatbot-panel">
+                    <div class="panel-header">
                         <h2>예시 질문</h2>
                         <p>지역, 메뉴, 상황을 같이 입력하면 더 정확합니다.</p>
                     </div>
@@ -65,6 +80,7 @@
                         <li>웹 검색 결과는 사용하지 않습니다.</li>
                         <li>추천 카드는 서버 랭킹 결과입니다.</li>
                         <li>브라우저별 세션으로 대화 맥락을 분리합니다.</li>
+                        <li>좋아요/별로예요 피드백으로 다음 추천을 재정렬합니다.</li>
                     </ul>
                 </section>
             </aside>
@@ -73,9 +89,15 @@
                 <div class="chatbot-header">
                     <div>
                         <h1>식당 추천 챗봇</h1>
-                        <p>원하는 지역, 메뉴, 분위기를 말해보세요.</p>
+                        <p id="currentFilters">원하는 지역, 메뉴, 분위기를 말해보세요.</p>
                     </div>
-                    <button type="button" id="btnResetChat" class="reset-button">초기화</button>
+                    <div class="chatbot-header-actions">
+                        <label class="stream-toggle">
+                            <input type="checkbox" id="streamToggle" checked>
+                            <span>스트리밍</span>
+                        </label>
+                        <button type="button" id="btnResetChat" class="reset-button">초기화</button>
+                    </div>
                 </div>
 
                 <div id="messageList" class="chat-message-list">

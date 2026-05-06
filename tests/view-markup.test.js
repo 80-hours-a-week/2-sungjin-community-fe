@@ -36,3 +36,13 @@ test('signup view keeps delegated back navigation attribute', () => {
     const html = readView('signup.html');
     assert.match(html, /data-history-back="true"/);
 });
+
+test('chatbot view keeps personalization and streaming controls required by runtime script', () => {
+    const html = readView('chatbot.html');
+
+    assert.match(html, /id="preferenceSummary"/);
+    assert.match(html, /id="preferenceChips"/);
+    assert.match(html, /id="currentFilters"/);
+    assert.match(html, /id="streamToggle"/);
+    assert.match(html, /id="btnResetChat"/);
+});

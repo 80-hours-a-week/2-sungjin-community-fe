@@ -33,6 +33,27 @@ function jsonResponse(status, payload) {
     };
 }
 
+function streamResponse(chunks) {
+    return {
+        ok: true,
+        status: 200,
+        headers: {
+            get(name) {
+                if (String(name).toLowerCase() === 'content-type') {
+                    return 'text/event-stream';
+                }
+                return null;
+            }
+        },
+        body: new ReadableStream({
+            start(controller) {
+                chunks.forEach((chunk) => controller.enqueue(Buffer.from(chunk, 'utf8')));
+                controller.close();
+            }
+        })
+    };
+}
+
 function loadApiClient({ fetchImpl, localStorageData = {}, pathname = '/posts' }) {
     global.fetch = fetchImpl;
     global.localStorage = createStorage(localStorageData);
@@ -206,4 +227,45 @@ test('getPosts sends sort and tag query params', async () => {
     assert.match(urls[0], /limit=15/);
     assert.match(urls[0], /sort=discussed/);
     assert.match(urls[0], /tag=react/);
+});
+
+test('streamChatWithBot sends profile payload and dispatches SSE chunks', async () => {
+    const calls = [];
+    const chunks = [];
+    let donePayload = null;
+
+    const api = loadApiClient({
+        fetchImpl: async (url, options = {}) => {
+            calls.push({ url, options });
+            return streamResponse([
+                'event: chunk\ndata: "안녕하세요 "\n\n',
+                'event: chunk\ndata: "추천입니다."\n\n',
+                'event: done\ndata: {"reply":"안녕하세요 추천입니다.","recommended":[]}\n\n'
+            ]);
+        }
+    });
+
+    const result = await api.streamChatWithBot(
+        '성수 파스타',
+        'session-test',
+        { regions: ['성수'], cuisines: ['파스타'] },
+        {
+            chunk(text) {
+                chunks.push(text);
+            },
+            done(payload) {
+                donePayload = payload;
+            }
+        }
+    );
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'http://api.test/chatbot/chat/stream');
+    const body = JSON.parse(calls[0].options.body);
+    assert.equal(body.message, '성수 파스타');
+    assert.equal(body.session_id, 'session-test');
+    assert.deepEqual(body.profile.regions, ['성수']);
+    assert.deepEqual(chunks, ['안녕하세요 ', '추천입니다.']);
+    assert.equal(donePayload.reply, '안녕하세요 추천입니다.');
+    assert.equal(result.reply, '안녕하세요 추천입니다.');
 });

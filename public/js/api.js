@@ -67,6 +67,7 @@
         read_unread_messages_success: '읽지 않은 메시지 수를 불러왔습니다.',
         chat_success: '추천 결과를 불러왔습니다.',
         session_reset: '대화 기록을 초기화했습니다.',
+        feedback_recorded: '추천 피드백을 반영했습니다.',
         status_ok: '상태를 확인했습니다.'
     });
 
@@ -817,15 +818,81 @@
      * @param {string} [sessionId] - 세션 격리용 고유 ID
      * @returns {Promise<{reply: string, recommended: Array}>}
      */
-    async function chatWithBot(message, sessionId) {
+    async function chatWithBot(message, sessionId, profile) {
         const body = { message: String(message || '').trim() };
         if (sessionId) body.session_id = sessionId;
+        if (profile) body.profile = profile;
         const res = await request('/chatbot/chat', {
             method: 'POST',
             body,
             auth: false   // 챗봇은 비로그인 사용 허용
         });
         return res && res.data ? res.data : res;
+    }
+
+    async function streamChatWithBot(message, sessionId, profile, handlers = {}) {
+        const body = { message: String(message || '').trim() };
+        if (sessionId) body.session_id = sessionId;
+        if (profile) body.profile = profile;
+
+        const response = await fetch(toApiUrl('/chatbot/chat/stream'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            const payload = await parseResponseBody(response);
+            throw normalizeApiError(payload || {}, response.status);
+        }
+
+        if (!response.body || !response.body.getReader) {
+            const payload = await parseResponseBody(response);
+            const data = payload && payload.data ? payload.data : payload;
+            if (handlers.done) handlers.done(data);
+            return data;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+        let lastPayload = null;
+
+        function dispatchEventBlock(block) {
+            const lines = block.split('\n');
+            let eventName = 'message';
+            const dataLines = [];
+            lines.forEach((line) => {
+                if (line.startsWith('event:')) eventName = line.slice(6).trim();
+                if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+            });
+            if (!dataLines.length) return;
+            const rawData = dataLines.join('\n');
+            let parsed = rawData;
+            try {
+                parsed = JSON.parse(rawData);
+            } catch (error) {
+                // Keep raw text.
+            }
+            if (eventName === 'chunk' && handlers.chunk) {
+                handlers.chunk(String(parsed || ''));
+            }
+            if (eventName === 'done') {
+                lastPayload = parsed;
+                if (handlers.done) handlers.done(parsed);
+            }
+        }
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const blocks = buffer.split('\n\n');
+            buffer = blocks.pop() || '';
+            blocks.forEach(dispatchEventBlock);
+        }
+        if (buffer.trim()) dispatchEventBlock(buffer);
+        return lastPayload;
     }
 
     /**
@@ -847,6 +914,18 @@
      */
     async function getChatbotStatus() {
         return request('/chatbot/status', { auth: false });
+    }
+
+    async function submitChatbotFeedback(sessionId, shopId, action, shop) {
+        const body = { shop_id: shopId, action };
+        if (sessionId) body.session_id = sessionId;
+        if (shop) body.shop = shop;
+        const res = await request('/chatbot/feedback', {
+            method: 'POST',
+            body,
+            auth: false
+        });
+        return res && res.data ? res.data : res;
     }
 
     // =========================
@@ -980,8 +1059,10 @@
         blockUser,
         unblockUser,
         chatWithBot,
+        streamChatWithBot,
         resetChatSession,
         getChatbotStatus,
+        submitChatbotFeedback,
         uploadImage,
         normalizeTags,
         toApiUrl,
