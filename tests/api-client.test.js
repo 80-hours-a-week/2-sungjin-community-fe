@@ -269,3 +269,27 @@ test('streamChatWithBot sends profile payload and dispatches SSE chunks', async 
     assert.equal(donePayload.reply, '안녕하세요 추천입니다.');
     assert.equal(result.reply, '안녕하세요 추천입니다.');
 });
+
+test('getChatbotProfile loads persisted preference memory by session id', async () => {
+    const calls = [];
+    const api = loadApiClient({
+        fetchImpl: async (url, options = {}) => {
+            calls.push({ url, options });
+            return jsonResponse(200, {
+                message: 'profile_loaded',
+                data: {
+                    profile: { regions: ['강남'], cuisines: ['파스타'] },
+                    storage: 'database'
+                }
+            });
+        }
+    });
+
+    const data = await api.getChatbotProfile('session-profile');
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'http://api.test/chatbot/profile?session_id=session-profile');
+    assert.equal(calls[0].options.method, 'GET');
+    assert.deepEqual(data.profile.regions, ['강남']);
+    assert.equal(data.storage, 'database');
+});

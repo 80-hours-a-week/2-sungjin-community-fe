@@ -68,6 +68,7 @@
         chat_success: '추천 결과를 불러왔습니다.',
         session_reset: '대화 기록을 초기화했습니다.',
         feedback_recorded: '추천 피드백을 반영했습니다.',
+        profile_loaded: '저장된 챗봇 취향을 불러왔습니다.',
         status_ok: '상태를 확인했습니다.'
     });
 
@@ -916,6 +917,14 @@
         return request('/chatbot/status', { auth: false });
     }
 
+    async function getChatbotProfile(sessionId) {
+        const params = new URLSearchParams();
+        if (sessionId) params.set('session_id', sessionId);
+        const suffix = params.toString() ? `?${params.toString()}` : '';
+        const res = await request(`/chatbot/profile${suffix}`, { auth: false });
+        return res && res.data ? res.data : res;
+    }
+
     async function submitChatbotFeedback(sessionId, shopId, action, shop) {
         const body = { shop_id: shopId, action };
         if (sessionId) body.session_id = sessionId;
@@ -1062,6 +1071,7 @@
         streamChatWithBot,
         resetChatSession,
         getChatbotStatus,
+        getChatbotProfile,
         submitChatbotFeedback,
         uploadImage,
         normalizeTags,

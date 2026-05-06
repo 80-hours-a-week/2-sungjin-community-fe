@@ -49,6 +49,7 @@
     const REGION_KEYWORDS = ['강남', '역삼', '선릉', '삼성', '청담', '압구정', '성수', '홍대', '합정', '망원', '이태원', '한남', '중구', '을지로', '명동', '종로', '마포', '여의도', '잠실', '양재', '도곡', '신촌', '건대', '코엑스'];
     const CUISINE_KEYWORDS = ['파스타', '이탈리아', '양식', '한식', '중식', '일식', '스시', '초밥', '오마카세', '고기', '삼겹살', '갈비', '소고기', '냉면', '평냉', '라면', '국밥', '해물', '회', '카페', '브런치', '피자', '버거', '치킨', '와인', '주점', '다이닝바', '코스', '파인다이닝'];
     const SITUATION_KEYWORDS = ['데이트', '혼밥', '회식', '가족', '모임', '점심', '저녁', '아침', '소개팅', '기념일', '접대', '가성비', '조용', '분위기', '캐주얼'];
+    const AVOID_KEYWORDS = ['웨이팅 긴 곳', '긴 웨이팅', '웨이팅', '노키즈존', '노키즈', '오마카세', '술집 분위기', '시끄러운'];
 
     let isLoading = false;
     const shopById = new Map();
@@ -131,11 +132,17 @@
         SITUATION_KEYWORDS.forEach((keyword) => {
             if (containsKeyword(message, keyword)) uniquePush(profile.situations, keyword);
         });
-        if (['가성비', '저렴', '싸', '비싸지', '무난'].some((keyword) => message.includes(keyword))) {
+        AVOID_KEYWORDS.forEach((keyword) => {
+            const wantsAvoid = ['싫', '말고', '빼', '피해', '제외', '없는', '적은'].some((item) => message.includes(item))
+                || ['웨이팅 긴 곳', '긴 웨이팅', '노키즈존', '노키즈', '술집 분위기'].includes(keyword);
+            if (containsKeyword(message, keyword) && wantsAvoid) uniquePush(profile.avoid, keyword);
+        });
+        if (['고급', '비싸도', '비싸도 됨', '파인다이닝', '기념일'].some((keyword) => message.includes(keyword))) {
+            profile.budget = '비싸도 됨';
+        } else if (['중간', '보통', '적당'].some((keyword) => message.includes(keyword))) {
+            profile.budget = '중간';
+        } else if (['가성비', '저렴', '비싸지', '무난', '싼 곳', '싸게'].some((keyword) => message.includes(keyword))) {
             profile.budget = '가성비';
-        }
-        if (['고급', '비싸도', '파인다이닝', '기념일'].some((keyword) => message.includes(keyword))) {
-            profile.budget = '프리미엄';
         }
         return profile;
     }
@@ -147,6 +154,7 @@
         if (profile.situations.length) parts.push(`상황 ${profile.situations.slice(0, 4).join(', ')}`);
         if (profile.budget) parts.push(`예산 ${profile.budget}`);
         if (profile.liked_categories.length) parts.push(`선호 ${profile.liked_categories.slice(0, 3).join(', ')}`);
+        if (profile.avoid.length) parts.push(`회피 ${profile.avoid.slice(0, 3).join(', ')}`);
         return parts.join(' · ') || '아직 저장된 취향이 없습니다.';
     }
 
@@ -162,6 +170,7 @@
         profile.situations.slice(0, 4).forEach((value) => chips.push(['상황', value]));
         if (profile.budget) chips.push(['예산', profile.budget]);
         profile.liked_categories.slice(0, 3).forEach((value) => chips.push(['선호', value]));
+        profile.avoid.slice(0, 3).forEach((value) => chips.push(['회피', value]));
 
         preferenceChipsEl.innerHTML = chips.length
             ? chips.map(([label, value]) => `<span class="saved-chip"><b>${escapeHtml(label)}</b>${escapeHtml(value)}</span>`).join('')
@@ -175,10 +184,11 @@
             const engineReady = data && data.recommendation_engine && data.recommendation_engine.ready;
             const shopCount = data && data.recommendation_engine && data.recommendation_engine.shop_count;
             const provider = data && data.chatbot && data.chatbot.provider;
+            const storage = data && data.chatbot && data.chatbot.personalization && data.chatbot.personalization.storage;
 
             if (engineReady) {
                 if (statusDot) statusDot.className = 'status-dot ready';
-                if (statusText) statusText.textContent = `준비 완료 (매장 ${shopCount}개 · ${provider || 'mock'})`;
+                if (statusText) statusText.textContent = `준비 완료 (매장 ${shopCount}개 · ${provider || 'mock'} · ${storage || 'memory'})`;
                 if (chatStatusText) chatStatusText.textContent = `${shopCount}개 매장 데이터 로드됨`;
             } else {
                 if (statusDot) statusDot.className = 'status-dot error';
@@ -337,6 +347,18 @@
         if (!data) return;
         if (data.profile) {
             setProfile(mergeProfile(getProfile(), data.profile));
+        }
+    }
+
+    async function hydrateServerProfile() {
+        if (typeof getChatbotProfile !== 'function') return;
+        try {
+            const data = await getChatbotProfile(sessionId);
+            if (data && data.profile) {
+                setProfile(mergeProfile(getProfile(), data.profile));
+            }
+        } catch (error) {
+            // Local profile remains usable when the server is unavailable.
         }
     }
 
@@ -503,6 +525,7 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         setProfile(getProfile());
+        hydrateServerProfile();
         checkStatus();
         chatInput.focus();
     });
