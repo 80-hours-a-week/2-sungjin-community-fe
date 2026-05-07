@@ -372,27 +372,33 @@
             headers = {},
             body,
             auth = true,
+            optionalAuth = false,
             retry = true,
             suppressAuthRedirect = false
         } = options;
 
         try {
+            const shouldAttachAuth = auth || optionalAuth;
             // Boot restoration shortcut: if access token is missing or expired but refresh token exists.
-            if (auth && authState.refreshToken && (!authState.accessToken || isAccessTokenExpired())) {
+            if (shouldAttachAuth && authState.refreshToken && (!authState.accessToken || isAccessTokenExpired())) {
                 try {
                     await refreshAccessToken();
                 } catch (error) {
-                    if (!suppressAuthRedirect) {
+                    if (optionalAuth && !auth) {
+                        clearAuthState();
+                    } else if (!suppressAuthRedirect) {
                         handleAuthExpiredRedirect();
                     }
-                    throw error;
+                    if (auth) {
+                        throw error;
+                    }
                 }
             }
 
             const requestHeaders = { ...headers };
             const requestBody = buildRequestBody(body, requestHeaders);
 
-            if (auth && authState.accessToken) {
+            if (shouldAttachAuth && authState.accessToken) {
                 requestHeaders.Authorization = `Bearer ${authState.accessToken}`;
             }
 
@@ -436,6 +442,21 @@
                 raw: error
             });
         }
+    }
+
+    async function buildOptionalAuthHeaders(headers = {}) {
+        const requestHeaders = { ...headers };
+        if (authState.refreshToken && (!authState.accessToken || isAccessTokenExpired())) {
+            try {
+                await refreshAccessToken();
+            } catch (error) {
+                clearAuthState();
+            }
+        }
+        if (authState.accessToken) {
+            requestHeaders.Authorization = `Bearer ${authState.accessToken}`;
+        }
+        return requestHeaders;
     }
 
     async function ensureAuthenticated(options = {}) {
@@ -826,7 +847,8 @@
         const res = await request('/chatbot/chat', {
             method: 'POST',
             body,
-            auth: false   // 챗봇은 비로그인 사용 허용
+            auth: false,
+            optionalAuth: true
         });
         return res && res.data ? res.data : res;
     }
@@ -838,7 +860,7 @@
 
         const response = await fetch(toApiUrl('/chatbot/chat/stream'), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: await buildOptionalAuthHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify(body)
         });
 
@@ -906,7 +928,8 @@
         return request('/chatbot/reset', {
             method: 'POST',
             body: Object.keys(body).length > 0 ? body : undefined,
-            auth: false
+            auth: false,
+            optionalAuth: true
         });
     }
 
@@ -921,7 +944,10 @@
         const params = new URLSearchParams();
         if (sessionId) params.set('session_id', sessionId);
         const suffix = params.toString() ? `?${params.toString()}` : '';
-        const res = await request(`/chatbot/profile${suffix}`, { auth: false });
+        const res = await request(`/chatbot/profile${suffix}`, {
+            auth: false,
+            optionalAuth: true
+        });
         return res && res.data ? res.data : res;
     }
 
@@ -932,7 +958,8 @@
         const res = await request('/chatbot/feedback', {
             method: 'POST',
             body,
-            auth: false
+            auth: false,
+            optionalAuth: true
         });
         return res && res.data ? res.data : res;
     }

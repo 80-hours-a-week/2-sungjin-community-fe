@@ -270,6 +270,52 @@ test('streamChatWithBot sends profile payload and dispatches SSE chunks', async 
     assert.equal(result.reply, '안녕하세요 추천입니다.');
 });
 
+test('chatbot requests attach optional Authorization for logged-in users', async () => {
+    const calls = [];
+    const api = loadApiClient({
+        localStorageData: {
+            'auth.access_token': 'chatbot-access-token'
+        },
+        fetchImpl: async (url, options = {}) => {
+            calls.push({ url, options });
+            return jsonResponse(200, {
+                message: 'chat_success',
+                data: { reply: 'ok', recommended: [], memory_scope: 'user' }
+            });
+        }
+    });
+
+    const data = await api.chatWithBot('강남 파스타 추천', 'session-chatbot', {
+        regions: ['강남']
+    });
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'http://api.test/chatbot/chat');
+    assert.equal(calls[0].options.headers.Authorization, 'Bearer chatbot-access-token');
+    assert.equal(data.memory_scope, 'user');
+});
+
+test('streamChatWithBot attaches optional Authorization for logged-in users', async () => {
+    const calls = [];
+    const api = loadApiClient({
+        localStorageData: {
+            'auth.access_token': 'stream-access-token'
+        },
+        fetchImpl: async (url, options = {}) => {
+            calls.push({ url, options });
+            return streamResponse([
+                'event: done\ndata: {"reply":"ok","recommended":[],"memory_scope":"user"}\n\n'
+            ]);
+        }
+    });
+
+    const result = await api.streamChatWithBot('강남 파스타', 'session-stream', {});
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].options.headers.Authorization, 'Bearer stream-access-token');
+    assert.equal(result.memory_scope, 'user');
+});
+
 test('getChatbotProfile loads persisted preference memory by session id', async () => {
     const calls = [];
     const api = loadApiClient({
