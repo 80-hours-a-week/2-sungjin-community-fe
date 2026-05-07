@@ -53,6 +53,7 @@ test('chatbot view keeps personalization and streaming controls required by runt
     assert.match(html, /id="preferenceSummary"/);
     assert.match(html, /id="preferenceChips"/);
     assert.match(html, /id="currentFilters"/);
+    assert.match(html, /id="rankWeightSummary"/);
     assert.match(html, /id="streamToggle"/);
     assert.match(html, /id="btnResetChat"/);
 });

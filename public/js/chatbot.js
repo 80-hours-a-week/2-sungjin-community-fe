@@ -19,6 +19,7 @@
     const statusDot = engineStatus && engineStatus.querySelector('.status-dot');
     const statusText = engineStatus && engineStatus.querySelector('.status-text');
     const chatStatusText = document.getElementById('chatStatusText');
+    const rankWeightSummaryEl = document.getElementById('rankWeightSummary');
     const preferenceSummaryEl = document.getElementById('preferenceSummary');
     const preferenceChipsEl = document.getElementById('preferenceChips');
     const currentFiltersEl = document.getElementById('currentFilters');
@@ -178,28 +179,100 @@
             : '<span class="empty-chip">대화나 피드백으로 취향이 쌓입니다.</span>';
     }
 
+    function formatDecimal(value, digits = 3) {
+        const number = Number(value);
+        return Number.isFinite(number) ? number.toFixed(digits) : '-';
+    }
+
+    function formatWeightPercent(value) {
+        const number = Number(value);
+        return Number.isFinite(number) ? `${Math.round(number * 100)}%` : '0%';
+    }
+
+    function basename(path) {
+        const text = String(path || '').trim();
+        if (!text || text === 'default') return 'default';
+        return text.split(/[\\/]/).pop() || text;
+    }
+
+    function renderRankWeightSummary(rankWeights) {
+        if (!rankWeightSummaryEl) return;
+        if (!rankWeights || typeof rankWeights !== 'object') {
+            rankWeightSummaryEl.hidden = true;
+            rankWeightSummaryEl.innerHTML = '';
+            return;
+        }
+
+        const status = String(rankWeights.status || 'default');
+        const source = String(rankWeights.source || 'default');
+        const sourceLabel = status === 'artifact' ? '튜닝 가중치 적용' : '기본 랭킹 공식';
+        const weights = rankWeights.base_weights && typeof rankWeights.base_weights === 'object'
+            ? rankWeights.base_weights
+            : {};
+        const labels = {
+            bm25: '검색',
+            intent: '행동로그',
+            popularity: '인기도',
+            personal: '개인취향'
+        };
+        const weightItems = Object.entries(labels)
+            .filter(([key]) => Number(weights[key]) > 0)
+            .map(([key, label]) => `<span><b>${label}</b>${formatWeightPercent(weights[key])}</span>`)
+            .join('');
+
+        const promotion = rankWeights.promotion && typeof rankWeights.promotion === 'object'
+            ? rankWeights.promotion
+            : {};
+        const metric = promotion.metric || Object.keys(rankWeights.best_metrics || {})[0] || '';
+        const baselineMetrics = rankWeights.baseline_metrics || {};
+        const bestMetrics = rankWeights.best_metrics || {};
+        const hasMetric = metric && Number.isFinite(Number(bestMetrics[metric]));
+        const metricLine = hasMetric
+            ? `<div class="rank-metric-line">${escapeHtml(metric)} ${formatDecimal(baselineMetrics[metric])} → ${formatDecimal(bestMetrics[metric])}${Number.isFinite(Number(promotion.improvement)) ? ` (${Number(promotion.improvement) >= 0 ? '+' : ''}${formatDecimal(promotion.improvement)})` : ''}</div>`
+            : '';
+        const sampleLine = Number.isFinite(Number(rankWeights.samples))
+            ? `<div class="rank-sample-line">샘플 ${Number(rankWeights.samples).toLocaleString('ko-KR')}개 · 그룹 ${Number(rankWeights.eligible_groups || 0).toLocaleString('ko-KR')}개</div>`
+            : '';
+
+        rankWeightSummaryEl.hidden = false;
+        rankWeightSummaryEl.innerHTML = `
+            <div class="rank-summary-head">
+                <span>${sourceLabel}</span>
+                <small>${escapeHtml(basename(source))}</small>
+            </div>
+            ${weightItems ? `<div class="rank-weight-grid">${weightItems}</div>` : ''}
+            ${metricLine}
+            ${sampleLine}
+        `;
+    }
+
     async function checkStatus() {
         try {
             const res = await getChatbotStatus();
             const data = res && res.data ? res.data : res;
             const engineReady = data && data.recommendation_engine && data.recommendation_engine.ready;
             const shopCount = data && data.recommendation_engine && data.recommendation_engine.shop_count;
+            const rankWeights = data && data.recommendation_engine && data.recommendation_engine.rank_weights;
             const provider = data && data.chatbot && data.chatbot.provider;
             const storage = data && data.chatbot && data.chatbot.personalization && data.chatbot.personalization.storage;
+            const rankLabel = rankWeights && rankWeights.status === 'artifact' ? '튜닝 적용' : '기본 공식';
 
             if (engineReady) {
                 if (statusDot) statusDot.className = 'status-dot ready';
-                if (statusText) statusText.textContent = `준비 완료 (매장 ${shopCount}개 · ${provider || 'mock'} · ${storage || 'memory'})`;
+                if (statusText) statusText.textContent = `준비 완료 (매장 ${shopCount}개 · ${provider || 'mock'} · ${storage || 'memory'} · ${rankLabel})`;
                 if (chatStatusText) chatStatusText.textContent = `${shopCount}개 매장 데이터 로드됨`;
+                renderRankWeightSummary(rankWeights);
             } else {
                 if (statusDot) statusDot.className = 'status-dot error';
                 if (statusText) statusText.textContent = '추천 엔진 미로드 (CSV 파일 확인)';
                 if (chatStatusText) chatStatusText.textContent = '추천 엔진 초기화 중...';
+                renderRankWeightSummary(null);
             }
         } catch (e) {
             if (statusDot) statusDot.className = 'status-dot error';
             if (statusText) statusText.textContent = '백엔드 연결 실패';
             if (chatStatusText) chatStatusText.textContent = '서버에 연결할 수 없습니다';
+            renderRankWeightSummary(null);
         }
     }
 

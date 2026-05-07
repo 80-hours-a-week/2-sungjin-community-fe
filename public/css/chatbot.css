@@ -52,6 +52,73 @@
     font-size: 14px;
 }
 
+.rank-weight-summary {
+    margin: -6px 16px 18px;
+    padding: 12px;
+    border: 1px solid rgba(6, 182, 212, 0.22);
+    border-radius: 14px;
+    background: rgba(6, 182, 212, 0.055);
+}
+
+.rank-summary-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--color-text-main);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.rank-summary-head small {
+    max-width: 130px;
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rank-weight-grid {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.rank-weight-grid span {
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    color: var(--color-text-sub);
+    background: rgba(255, 255, 255, 0.045);
+    font-size: 11px;
+}
+
+.rank-weight-grid b {
+    color: var(--color-text-main);
+    font-weight: 800;
+}
+
+.rank-metric-line,
+.rank-sample-line {
+    margin-top: 8px;
+    color: var(--color-text-sub);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.rank-metric-line {
+    color: #a7f3d0;
+    font-weight: 700;
+}
+
 .preference-chips,
 .preference-actions {
     padding: 14px 16px 0;
