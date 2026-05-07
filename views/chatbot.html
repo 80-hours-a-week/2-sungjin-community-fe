@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>식당 추천 AI - 아무 말 대잔치</title>
+    <title>AI 챗봇 - 아무 말 대잔치</title>
     <link rel="stylesheet" href="/css/design-system.css">
     <link rel="stylesheet" href="/css/common.css">
     <link rel="stylesheet" href="/css/chatbot.css">
@@ -12,22 +12,22 @@
 
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="아무 말 대잔치">
-    <meta property="og:title" content="식당 추천 AI - 아무 말 대잔치">
-    <meta property="og:description" content="커뮤니티 행동 로그 기반 식당 추천 챗봇">
+    <meta property="og:title" content="AI 챗봇 - 아무 말 대잔치">
+    <meta property="og:description" content="커뮤니티 행동 로그 기반 식당 추천 기능을 제공하는 AI 챗봇">
     <meta property="og:image" content="/images/og-image.png">
     <meta name="twitter:card" content="summary_large_image">
 </head>
 
 <body>
-    <div id="headerSlot" data-title="식당 추천 AI" data-back-target="/posts"></div>
+    <div id="headerSlot" data-title="AI 챗봇" data-back-target="/posts"></div>
 
     <main class="chatbot-main">
         <div class="chatbot-shell">
             <aside class="chatbot-side">
                 <section class="chatbot-panel">
                     <div class="panel-header">
-                        <h2>추천 상태</h2>
-                        <p id="chatStatusText">추천 엔진 상태를 확인하는 중입니다.</p>
+                        <h2>식당 추천 상태</h2>
+                        <p id="chatStatusText">식당 추천 엔진 상태를 확인하는 중입니다.</p>
                     </div>
                     <div id="engineStatus" class="engine-status">
                         <span class="status-dot"></span>
@@ -61,11 +61,11 @@
                         <p>지역, 메뉴, 상황을 같이 입력하면 더 정확합니다.</p>
                     </div>
                     <div class="tip-list">
-                        <button type="button" class="tip-item" data-prompt="성수 데이트 파스타 맛집 추천해줘">
-                            성수 데이트 파스타
+                        <button type="button" class="tip-item" data-prompt="강남 데이트 파스타 맛집 추천해줘">
+                            강남 데이트 파스타
                         </button>
-                        <button type="button" class="tip-item" data-prompt="중구 평냉 맛집 너무 비싸지 않은 곳으로 추천해줘">
-                            중구 평냉 가성비
+                        <button type="button" class="tip-item" data-prompt="강남 냉면 맛집 가성비 좋은 곳 추천해줘">
+                            강남 냉면 가성비
                         </button>
                         <button type="button" class="tip-item" data-prompt="강남 회식하기 좋은 고기집 추천해줘">
                             강남 회식 고기집
@@ -78,10 +78,11 @@
 
                 <section class="chatbot-panel">
                     <div class="panel-header">
-                        <h2>응답 범위</h2>
-                        <p>데이터셋에 있는 식당 후보만 추천합니다.</p>
+                        <h2>지원 기능</h2>
+                        <p>현재는 식당 추천 기능을 우선 지원합니다.</p>
                     </div>
                     <ul class="scope-list">
+                        <li>식당 추천은 데이터셋에 있는 후보만 사용합니다.</li>
                         <li>웹 검색 결과는 사용하지 않습니다.</li>
                         <li>추천 카드는 서버 랭킹 결과입니다.</li>
                         <li>브라우저별 세션으로 대화 맥락을 분리합니다.</li>
@@ -93,8 +94,8 @@
             <section class="chatbot-content">
                 <div class="chatbot-header">
                     <div>
-                        <h1>식당 추천 챗봇</h1>
-                        <p id="currentFilters">원하는 지역, 메뉴, 분위기를 말해보세요.</p>
+                        <h1>AI 챗봇</h1>
+                        <p id="currentFilters">식당 추천이 필요하면 지역, 메뉴, 분위기를 말해보세요.</p>
                     </div>
                     <div class="chatbot-header-actions">
                         <label class="stream-toggle">
@@ -107,9 +108,9 @@
 
                 <div id="messageList" class="chat-message-list">
                     <div class="message-bubble bot-bubble">
-                        <div class="bubble-avatar">식</div>
+                        <div class="bubble-avatar">AI</div>
                         <div class="bubble-body">
-                            <div class="message-content">안녕하세요. 식당 추천을 도와드릴게요. 예: "성수 데이트 파스타 맛집 추천해줘"</div>
+                            <div class="message-content">안녕하세요. 지금은 식당 추천 기능을 도와드릴 수 있어요. 예: "강남 데이트 파스타 맛집 추천해줘"</div>
                         </div>
                     </div>
                 </div>
@@ -120,7 +121,7 @@
                         class="chat-input auto-resize"
                         rows="2"
                         maxlength="500"
-                        placeholder="식당, 지역, 메뉴, 상황을 입력해 주세요"
+                        placeholder="식당 추천 조건이나 질문을 입력해 주세요"
                     ></textarea>
                     <div class="chat-form-footer">
                         <span class="char-counter"><span id="charCount">0</span>/500</span>

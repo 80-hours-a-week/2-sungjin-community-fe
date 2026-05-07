@@ -1,5 +1,6 @@
 /**
- * 식당 추천 챗봇 UI 컨트롤러.
+ * AI 챗봇 UI 컨트롤러.
+ * 현재 제공 기능: 식당 추천.
  * - 세션별 대화
  * - LocalStorage 기반 개인 취향 프로필
  * - 추천 이유/점수/피드백 렌더링
@@ -161,7 +162,7 @@
     function renderProfile(profile = getProfile()) {
         const summary = profileSummary(profile);
         if (preferenceSummaryEl) preferenceSummaryEl.textContent = summary;
-        if (currentFiltersEl) currentFiltersEl.textContent = summary === '아직 저장된 취향이 없습니다.' ? '원하는 지역, 메뉴, 분위기를 말해보세요.' : summary;
+        if (currentFiltersEl) currentFiltersEl.textContent = summary === '아직 저장된 취향이 없습니다.' ? '식당 추천이 필요하면 지역, 메뉴, 분위기를 말해보세요.' : summary;
         if (!preferenceChipsEl) return;
 
         const chips = [];
@@ -214,7 +215,7 @@
         const el = document.createElement('div');
         el.className = 'message-bubble bot-bubble';
         el.innerHTML = `
-            <div class="bubble-avatar">식</div>
+            <div class="bubble-avatar">AI</div>
             <div class="bubble-body">
                 <div class="message-content"></div>
                 <div class="shop-cards" hidden></div>
@@ -264,17 +265,22 @@
         const facs = (shop.facilities || []).slice(0, 3).map((f) => `<span class="shop-tag">${escapeHtml(f)}</span>`).join('');
         const reasons = (shop.reasons || []).slice(0, 3).map((r) => `<li>${escapeHtml(r)}</li>`).join('');
         const score = typeof shop.score === 'number' ? `<span class="score-pill">점수 ${shop.score.toFixed(3)}</span>` : '';
+        const rank = Number.isFinite(Number(shop.rank)) ? `<span class="rank-pill">#${Number(shop.rank)}</span>` : '';
+        const breakdown = renderScoreBreakdown(shop.score_breakdown);
+        const formula = shop.ranking_formula ? `<div class="ranking-formula">${escapeHtml(shop.ranking_formula)}</div>` : '';
 
         return `
             <div class="shop-card" data-shop-id="${id}">
                 <div class="shop-card-head">
                     <div class="shop-card-name">${name}</div>
-                    ${score}
+                    <div class="shop-card-badges">${rank}${score}</div>
                 </div>
                 ${addr ? `<div class="shop-card-row"><span class="label">주소</span>${addr}</div>` : ''}
                 ${cats ? `<div class="shop-card-row"><span class="label">종류</span>${cats}</div>` : ''}
                 ${menus ? `<div class="shop-card-row"><span class="label">메뉴</span>${menus}</div>` : ''}
                 ${facs ? `<div class="shop-card-row"><span class="label">편의</span>${facs}</div>` : ''}
+                ${breakdown ? `<div class="score-breakdown">${breakdown}</div>` : ''}
+                ${formula}
                 ${reasons ? `<ul class="reason-list">${reasons}</ul>` : ''}
                 <div class="feedback-actions">
                     <button type="button" data-feedback="like" data-shop-id="${id}">좋아요</button>
@@ -283,6 +289,20 @@
                 </div>
             </div>
         `;
+    }
+
+    function renderScoreBreakdown(scoreBreakdown) {
+        if (!scoreBreakdown || typeof scoreBreakdown !== 'object') return '';
+        const labels = {
+            bm25: '검색',
+            intent: '행동로그',
+            popularity: '인기도',
+            personal: '개인취향'
+        };
+        return Object.entries(labels)
+            .filter(([key]) => Number.isFinite(Number(scoreBreakdown[key])))
+            .map(([key, label]) => `<span><b>${label}</b>${Number(scoreBreakdown[key]).toFixed(2)}</span>`)
+            .join('');
     }
 
     function renderNextQuestions(container, questions) {
@@ -304,7 +324,7 @@
         el.className = 'typing-indicator';
         el.id = 'typingIndicator';
         el.innerHTML = `
-            <div class="bubble-avatar">식</div>
+            <div class="bubble-avatar">AI</div>
             <div class="typing-dots"><span></span><span></span><span></span></div>
         `;
         messageList.appendChild(el);
@@ -425,7 +445,7 @@
 
         messageList.innerHTML = `
             <div class="message-bubble bot-bubble">
-                <div class="bubble-avatar">식</div>
+                <div class="bubble-avatar">AI</div>
                 <div class="bubble-body">
                     <div class="message-content">대화 기록과 취향 프로필이 초기화되었습니다. 다시 식당 추천을 요청해보세요.</div>
                 </div>

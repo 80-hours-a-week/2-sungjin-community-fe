@@ -257,6 +257,60 @@ function escapeHtml(text) {
         .replace(/'/g, '&#39;');
 }
 
+function renderMarkdownContent(text) {
+    const source = String(text || '').replace(/\r\n/g, '\n');
+    const lines = source.split('\n');
+    const output = [];
+    let inList = false;
+
+    function closeList() {
+        if (inList) {
+            output.push('</ul>');
+            inList = false;
+        }
+    }
+
+    function renderInline(value) {
+        return escapeHtml(value)
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    }
+
+    lines.forEach((rawLine) => {
+        const trimmed = rawLine.trim();
+        if (!trimmed) {
+            closeList();
+            output.push('<br>');
+            return;
+        }
+
+        const heading = /^(#{1,3})\s+(.+)$/.exec(trimmed);
+        if (heading) {
+            closeList();
+            const level = heading[1].length + 1;
+            output.push(`<h${level}>${renderInline(heading[2])}</h${level}>`);
+            return;
+        }
+
+        const listItem = /^[-*]\s+(.+)$/.exec(trimmed);
+        if (listItem) {
+            if (!inList) {
+                output.push('<ul>');
+                inList = true;
+            }
+            output.push(`<li>${renderInline(listItem[1])}</li>`);
+            return;
+        }
+
+        closeList();
+        output.push(`<p>${renderInline(rawLine)}</p>`);
+    });
+
+    closeList();
+    return output.join('');
+}
+
 function setupPasswordToggles() {
     if (typeof document === 'undefined') return;
     const passwordInputs = document.querySelectorAll('input[type="password"]');
@@ -850,6 +904,7 @@ if (typeof module !== 'undefined' && module.exports) {
         formatNumber,
         formatStatCount,
         escapeHtml,
+        renderMarkdownContent,
         safeEscape,
         safeTruncate,
         safeFormatDate,

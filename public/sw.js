@@ -1,4 +1,4 @@
-const CACHE_NAME = 'community-cache-v2';
+const CACHE_NAME = 'community-cache-v4';
 const STATIC_ASSETS = [
     '/css/design-system.css',
     '/css/common.css',
@@ -42,17 +42,36 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(event.request.url);
 
+    if (url.origin !== self.location.origin) return;
+
     // API 요청은 캐시하지 않고 바이패스
     if (url.pathname.startsWith('/api/')) return;
 
-    // 정적 자원 (CSS, JS, 이미지) → Cache-first
-    const isStaticAsset =
+    // CSS/JS는 Network-first로 갱신 지연을 막고, 이미지는 Cache-first로 유지
+    const isCodeAsset =
         url.hostname === self.location.hostname &&
         (url.pathname.startsWith('/css/') ||
-         url.pathname.startsWith('/js/') ||
-         url.pathname.startsWith('/images/'));
+         url.pathname.startsWith('/js/'));
+    const isImageAsset =
+        url.hostname === self.location.hostname &&
+        url.pathname.startsWith('/images/');
 
-    if (isStaticAsset) {
+    if (isCodeAsset) {
+        event.respondWith(
+            fetch(event.request)
+                .then((response) => {
+                    if (response.ok) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
+                    }
+                    return response;
+                })
+                .catch(() => caches.match(event.request))
+        );
+        return;
+    }
+
+    if (isImageAsset) {
         event.respondWith(
             caches.match(event.request).then((cached) =>
                 cached || fetch(event.request).then((response) => {
@@ -113,4 +132,3 @@ self.addEventListener('fetch', (event) => {
         )
     );
 });
-
