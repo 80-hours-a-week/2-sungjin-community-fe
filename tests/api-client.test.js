@@ -316,6 +316,24 @@ test('streamChatWithBot attaches optional Authorization for logged-in users', as
     assert.equal(result.memory_scope, 'user');
 });
 
+test('streamChatWithBot rejects SSE error events instead of returning an empty payload', async () => {
+    const api = loadApiClient({
+        fetchImpl: async () => streamResponse([
+            'event: error\ndata: {"message":"validation_error","detail":"profile invalid"}\n\n'
+        ])
+    });
+
+    await assert.rejects(
+        () => api.streamChatWithBot('강남 파스타', 'session-stream-error', {}),
+        (error) => {
+            assert.equal(error.name, 'ApiError');
+            assert.equal(error.code, 'validation_error');
+            assert.equal(error.message, '입력값을 확인해 주세요.');
+            return true;
+        }
+    );
+});
+
 test('getChatbotProfile loads persisted preference memory by session id', async () => {
     const calls = [];
     const api = loadApiClient({

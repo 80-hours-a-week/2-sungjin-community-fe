@@ -291,6 +291,7 @@
             <div class="bubble-avatar">AI</div>
             <div class="bubble-body">
                 <div class="message-content"></div>
+                <div class="message-meta" hidden></div>
                 <div class="shop-cards" hidden></div>
                 <div class="next-questions" hidden></div>
             </div>
@@ -300,18 +301,46 @@
         return {
             el,
             content: el.querySelector('.message-content'),
+            meta: el.querySelector('.message-meta'),
             cards: el.querySelector('.shop-cards'),
             questions: el.querySelector('.next-questions')
         };
     }
 
-    function appendBotMessage(reply, shops, nextQuestions) {
+    function appendBotMessage(reply, shops, nextQuestions, memoryScope) {
         const shell = createBotShell();
         shell.content.textContent = reply || '';
+        renderMemoryScope(shell.meta, memoryScope);
         renderShopCards(shell.cards, shops || []);
         renderNextQuestions(shell.questions, nextQuestions || []);
         scrollToBottom();
         return shell;
+    }
+
+    function memoryScopeLabel(scope) {
+        const value = String(scope || '').trim().toLowerCase();
+        const labels = {
+            user: '계정 메모리',
+            account: '계정 메모리',
+            session: '브라우저 세션',
+            browser: '브라우저 세션',
+            local: '로컬 취향',
+            memory: '임시 메모리',
+            none: ''
+        };
+        return Object.prototype.hasOwnProperty.call(labels, value) ? labels[value] : value;
+    }
+
+    function renderMemoryScope(container, scope) {
+        if (!container) return;
+        const label = memoryScopeLabel(scope);
+        if (!label) {
+            container.hidden = true;
+            container.innerHTML = '';
+            return;
+        }
+        container.hidden = false;
+        container.innerHTML = `<span>${escapeHtml(label)}</span>`;
     }
 
     function renderShopCards(container, shops) {
@@ -479,6 +508,7 @@
                     done(payload) {
                         const data = payload || {};
                         shell.content.textContent = data.reply || shell.content.textContent;
+                        renderMemoryScope(shell.meta, data.memory_scope);
                         renderShopCards(shell.cards, data.recommended || []);
                         renderNextQuestions(shell.questions, data.next_questions || []);
                         applyServerPayload(data);
@@ -488,7 +518,7 @@
                 appendTypingIndicator();
                 const data = await chatWithBot(message, sessionId, getProfile());
                 removeTypingIndicator();
-                appendBotMessage(data.reply, data.recommended, data.next_questions);
+                appendBotMessage(data.reply, data.recommended, data.next_questions, data.memory_scope);
                 applyServerPayload(data);
             }
         } catch (err) {

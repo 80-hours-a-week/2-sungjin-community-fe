@@ -900,6 +900,12 @@
             if (eventName === 'chunk' && handlers.chunk) {
                 handlers.chunk(String(parsed || ''));
             }
+            if (eventName === 'error') {
+                const payload = parsed && typeof parsed === 'object'
+                    ? parsed
+                    : { message: String(parsed || 'stream_error') };
+                throw normalizeApiError(payload, response.status || 500);
+            }
             if (eventName === 'done') {
                 lastPayload = parsed;
                 if (handlers.done) handlers.done(parsed);
