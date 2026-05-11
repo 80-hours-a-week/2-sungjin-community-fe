@@ -14,12 +14,11 @@ const IS_PROD = NODE_ENV === 'production';
 // 보안: Content Security Policy 헤더
 // ===========================
 app.use((req, res, next) => {
-    // CDN 소스: Pretendard 폰트, marked.js, DOMPurify
     const csp = [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
-        "font-src 'self' https://cdn.jsdelivr.net",
+        "script-src 'self' 'unsafe-inline'",
+        "style-src 'self' 'unsafe-inline'",
+        "font-src 'self'",
         "img-src 'self' data: blob: https:",
         "connect-src 'self' " + (API_URL || 'http://localhost:8000') + (FILE_UPLOAD_API_URL ? ' ' + FILE_UPLOAD_API_URL : ''),
         "media-src 'self'",
@@ -64,6 +63,11 @@ app.use(rateLimit({ windowMs: 60_000, max: 200, message: '요청이 너무 많�
 
 // 정적 파일 제공
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/favicon.ico', (req, res) => {
+    res.type('image/png');
+    res.sendFile(path.join(__dirname, 'public', 'images', 'icons', 'icon-192x192.png'));
+});
 
 // ✅ 환경변수를 JavaScript로 제공 (JSON.stringify로 XSS/파싱 오류 방어)
 app.get('/config.js', (req, res) => {

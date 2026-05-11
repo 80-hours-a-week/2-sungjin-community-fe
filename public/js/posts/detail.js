@@ -123,8 +123,8 @@
             document.getElementById('postTitle').textContent = post.title;
             const postBodyContent = post.content || '';
             const postBodyContainer = document.getElementById('postBody');
-            if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
-                postBodyContainer.innerHTML = DOMPurify.sanitize(marked.parse(postBodyContent, { breaks: true }));
+            if (typeof renderMarkdownContent === 'function') {
+                postBodyContainer.innerHTML = renderMarkdownContent(postBodyContent);
                 postBodyContainer.classList.add('markdown-body');
             } else {
                 postBodyContainer.textContent = postBodyContent;

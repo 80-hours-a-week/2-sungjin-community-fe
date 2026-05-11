@@ -396,6 +396,58 @@
     color: var(--color-text-muted);
 }
 
+/* Chatbot Banner in Trending Panel */
+.chatbot-banner {
+    margin-top: 20px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(167, 139, 250, 0.05));
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chatbot-banner:hover {
+    transform: translateY(-2px);
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(167, 139, 250, 0.1));
+    border-color: rgba(139, 92, 246, 0.5);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
+}
+
+.chatbot-banner-icon {
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: rgba(139, 92, 246, 0.15);
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.chatbot-banner-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text-main);
+    margin-bottom: 2px;
+}
+
+.chatbot-banner-sub {
+    font-size: 12px;
+    color: var(--color-text-sub);
+}
+
+.chatbot-banner-arrow {
+    margin-left: auto;
+    font-size: 18px;
+    color: var(--color-primary);
+    font-weight: 300;
+}
+
 /* ==================== Post Detail ==================== */
 .post-detail-main {
     min-height: calc(100vh - var(--header-height));

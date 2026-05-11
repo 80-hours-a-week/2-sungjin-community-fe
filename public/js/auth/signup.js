@@ -30,6 +30,7 @@
         const form = document.getElementById('signupForm');
         const profileInput = document.getElementById('profileImage');
         const profilePreview = document.getElementById('profilePreview');
+        const btnRemoveProfileImage = document.getElementById('btnRemoveProfileImage');
         const profileError = document.getElementById('profileError');
         const confirmModal = document.getElementById('confirmModal');
         const btnCloseModal = document.getElementById('btnCloseModal');
@@ -49,13 +50,17 @@
         applyEmailHelperState(emailHelper, EMAIL_HELPER_STATE.default);
 
         if (profilePreview && profileInput) {
-            profilePreview.addEventListener('click', () => {
-                if (profileImageFile) {
-                    clearProfileImage(profileInput, profilePreview);
-                    validateAndUpdateButton();
-                    return;
-                }
+            profilePreview.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
                 profileInput.click();
+            });
+        }
+
+        if (btnRemoveProfileImage) {
+            btnRemoveProfileImage.addEventListener('click', () => {
+                clearProfileImage(profileInput, profilePreview, btnRemoveProfileImage);
+                validateAndUpdateButton();
             });
         }
 
@@ -77,14 +82,7 @@
 
                 const reader = new FileReader();
                 reader.onload = (readEvent) => {
-                    profilePreview.innerHTML = `
-                        <img
-                            src="${readEvent.target.result}"
-                            style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;"
-                            alt="프로필 미리보기"
-                            loading="lazy"
-                        >
-                    `;
+                    renderProfilePreview(profilePreview, btnRemoveProfileImage, readEvent.target.result);
                 };
                 reader.readAsDataURL(file);
                 validateAndUpdateButton();
@@ -316,10 +314,30 @@
         return String(message || '').includes('이미 사용 중인 이메일');
     }
 
-    function clearProfileImage(profileInput, profilePreview) {
+    function renderProfilePreview(profilePreview, removeButton, imageSrc) {
+        if (!profilePreview) return;
+        profilePreview.classList.add('has-image');
+        profilePreview.setAttribute('aria-label', '프로필 사진 변경');
+        profilePreview.innerHTML = `
+            <img
+                src="${imageSrc}"
+                alt="프로필 미리보기"
+                loading="lazy"
+            >
+            <span class="profile-overlay">변경</span>
+        `;
+        if (removeButton) removeButton.hidden = false;
+    }
+
+    function clearProfileImage(profileInput, profilePreview, removeButton) {
         profileImageFile = null;
-        profileInput.value = '';
-        profilePreview.innerHTML = '<div class="profile-placeholder">+</div>';
+        if (profileInput) profileInput.value = '';
+        if (profilePreview) {
+            profilePreview.classList.remove('has-image');
+            profilePreview.setAttribute('aria-label', '프로필 사진 선택');
+            profilePreview.innerHTML = '<div class="profile-placeholder">+</div>';
+        }
+        if (removeButton) removeButton.hidden = true;
     }
 
     if (typeof module !== 'undefined' && module.exports) {

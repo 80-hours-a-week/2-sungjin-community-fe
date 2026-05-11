@@ -74,3 +74,12 @@ test('extractData handles API response shapes', () => {
 test('escapeHtml handles malicious input', () => {
     assert.equal(utils.escapeHtml('<script>alert("xss")</script>'), '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;');
 });
+
+test('renderMarkdownContent renders safe local markdown without script execution', () => {
+    const html = utils.renderMarkdownContent('# 제목\n- **굵게**\n<script>alert("x")</script>');
+
+    assert.match(html, /<h2>제목<\/h2>/);
+    assert.match(html, /<strong>굵게<\/strong>/);
+    assert.match(html, /&lt;script&gt;alert/);
+    assert.doesNotMatch(html, /<script>/);
+});

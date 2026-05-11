@@ -15,6 +15,10 @@ router.get('/messages', (req, res) => {
     sendView(res, 'messages');
 });
 
+router.get('/chatbot', (req, res) => {
+    sendView(res, 'chatbot');
+});
+
 router.get('/notifications', (req, res) => {
     sendView(res, 'notifications');
 });
